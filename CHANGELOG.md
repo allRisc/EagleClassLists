@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Streamlit app now has a "Shutdown Server" button in the sidebar for clean shutdown
 - Signal handlers for graceful shutdown on SIGINT (Ctrl+C) and SIGTERM
 
+### Changed
+- Improved teachers list layout in Streamlit app to be more compact with horizontal button layout
+
 0.1.0
 ----------------------------------------------------------------------
 

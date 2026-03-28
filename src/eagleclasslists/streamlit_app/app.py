@@ -93,19 +93,22 @@ def render_teachers_page() -> None:
             )
 
             submitted = st.form_submit_button("Add Teacher")
-            if submitted and teacher_name.strip():
-                # Check for duplicate names
-                existing_names = {t.name for t in grade_list.teachers}
-                if teacher_name.strip() in existing_names:
-                    st.error(f"Teacher '{teacher_name}' already exists!")
+            if submitted:
+                if not teacher_name.strip():
+                    st.error("Teacher name is required!")
                 else:
-                    new_teacher = Teacher(
-                        name=teacher_name.strip(),
-                        clusters=list(selected_clusters),
-                    )
-                    grade_list.teachers.append(new_teacher)
-                    st.success(f"Added teacher: {teacher_name}")
-                    st.rerun()
+                    # Check for duplicate names
+                    existing_names = {t.name for t in grade_list.teachers}
+                    if teacher_name.strip() in existing_names:
+                        st.error(f"Teacher '{teacher_name}' already exists!")
+                    else:
+                        new_teacher = Teacher(
+                            name=teacher_name.strip(),
+                            clusters=list(selected_clusters),
+                        )
+                        grade_list.teachers.append(new_teacher)
+                        st.success(f"Added teacher: {teacher_name}")
+                        st.rerun()
 
     # Display existing teachers
     st.subheader("Existing Teachers")
@@ -114,55 +117,55 @@ def render_teachers_page() -> None:
         st.info("No teachers added yet. Use the form above to add teachers.")
     else:
         for idx, teacher in enumerate(grade_list.teachers):
-            with st.container():
-                col1, col2, col3 = st.columns([3, 2, 1])
+            col1, col2, col3 = st.columns([4, 3, 2])
 
-                with col1:
-                    st.write(f"**{teacher.name}**")
+            with col1:
+                st.write(f"**{teacher.name}**")
 
-                with col2:
-                    if teacher.clusters:
-                        clusters_str = ", ".join(c.value for c in teacher.clusters)
-                        st.write(f"Clusters: {clusters_str}")
-                    else:
-                        st.write("No clusters")
+            with col2:
+                if teacher.clusters:
+                    clusters_str = ", ".join(c.value for c in teacher.clusters)
+                    st.write(clusters_str)
+                else:
+                    st.write("—")
 
-                with col3:
+            with col3:
+                btn_col1, btn_col2 = st.columns(2)
+                with btn_col1:
                     if st.button("Edit", key=f"edit_teacher_{idx}"):
                         st.session_state[f"editing_teacher_{idx}"] = True
 
+                with btn_col2:
                     if st.button("Remove", key=f"remove_teacher_{idx}"):
                         st.session_state.teacher_to_remove = teacher.name
 
-                # Edit form
-                if st.session_state.get(f"editing_teacher_{idx}", False):
-                    with st.form(f"edit_teacher_form_{idx}"):
-                        new_name = st.text_input(
-                            "Name", value=teacher.name, key=f"edit_teacher_name_{idx}"
-                        )
-                        new_clusters = st.multiselect(
-                            "Clusters",
-                            options=list(Cluster),
-                            default=teacher.clusters,
-                            format_func=lambda x: x.value,
-                            key=f"edit_teacher_clusters_{idx}",
-                        )
+            # Edit form
+            if st.session_state.get(f"editing_teacher_{idx}", False):
+                with st.form(f"edit_teacher_form_{idx}"):
+                    new_name = st.text_input(
+                        "Name", value=teacher.name, key=f"edit_teacher_name_{idx}"
+                    )
+                    new_clusters = st.multiselect(
+                        "Clusters",
+                        options=list(Cluster),
+                        default=teacher.clusters,
+                        format_func=lambda x: x.value,
+                        key=f"edit_teacher_clusters_{idx}",
+                    )
 
-                        col_save, col_cancel = st.columns(2)
-                        with col_save:
-                            if st.form_submit_button("Save Changes"):
-                                teacher.name = new_name.strip()
-                                teacher.clusters = list(new_clusters)
-                                st.session_state[f"editing_teacher_{idx}"] = False
-                                st.success("Teacher updated!")
-                                st.rerun()
+                    btn_col1, btn_col2 = st.columns(2)
+                    with btn_col1:
+                        if st.form_submit_button("Save Changes"):
+                            teacher.name = new_name.strip()
+                            teacher.clusters = list(new_clusters)
+                            st.session_state[f"editing_teacher_{idx}"] = False
+                            st.success("Teacher updated!")
+                            st.rerun()
 
-                        with col_cancel:
-                            if st.form_submit_button("Cancel"):
-                                st.session_state[f"editing_teacher_{idx}"] = False
-                                st.rerun()
-
-                st.divider()
+                    with btn_col2:
+                        if st.form_submit_button("Cancel"):
+                            st.session_state[f"editing_teacher_{idx}"] = False
+                            st.rerun()
 
 
 def render_students_page() -> None:
@@ -228,23 +231,28 @@ def render_students_page() -> None:
                 speech = st.checkbox("Speech Services", key="new_student_speech")
 
             submitted = st.form_submit_button("Add Student")
-            if submitted and first_name.strip() and last_name.strip():
-                # Check for duplicates
-                existing = {(s.first_name, s.last_name) for s in grade_list.students}
-                if (first_name.strip(), last_name.strip()) in existing:
-                    st.error(f"Student '{first_name} {last_name}' already exists!")
+            if submitted:
+                if not first_name.strip():
+                    st.error("First name is required!")
+                elif not last_name.strip():
+                    st.error("Last name is required!")
                 else:
-                    new_student = Student(
-                        first_name=first_name.strip(),
-                        last_name=last_name.strip(),
-                        gender=gender,
-                        academics=academics,
-                        behavior=behavior,
-                        cluster=cluster if cluster else None,
-                        resource=resource,
-                        speech=speech,
-                    )
-                    grade_list.students.append(new_student)
+                    # Check for duplicates
+                    existing = {(s.first_name, s.last_name) for s in grade_list.students}
+                    if (first_name.strip(), last_name.strip()) in existing:
+                        st.error(f"Student '{first_name} {last_name}' already exists!")
+                    else:
+                        new_student = Student(
+                            first_name=first_name.strip(),
+                            last_name=last_name.strip(),
+                            gender=gender,
+                            academics=academics,
+                            behavior=behavior,
+                            cluster=cluster if cluster else None,
+                            resource=resource,
+                            speech=speech,
+                        )
+                        grade_list.students.append(new_student)
                     st.success(f"Added student: {first_name} {last_name}")
                     st.rerun()
 
