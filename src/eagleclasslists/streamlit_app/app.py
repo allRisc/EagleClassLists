@@ -24,11 +24,13 @@ students to teachers, with Excel file import/export functionality.
 
 from __future__ import annotations
 
+import os
+import signal
+import subprocess
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
-import subprocess
-import sys
 
 import streamlit as st
 
@@ -619,6 +621,12 @@ def st_app() -> None:
     st.sidebar.write(f"Teachers: {len(grade_list.teachers)}")
     st.sidebar.write(f"Students: {len(grade_list.students)}")
     st.sidebar.write(f"Classrooms: {len(grade_list.classes)}")
+
+    # Shutdown button
+    st.sidebar.divider()
+    if st.sidebar.button("🛑 Shutdown Server", type="primary"):
+        st.sidebar.warning("Shutting down server...")
+        os.kill(os.getpid(), signal.SIGTERM)
 
     # Render selected page
     if page == "Teachers":

@@ -16,10 +16,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ####################################################################################################
 
-from typing import NoReturn
+"""Streamlit application for EagleClassLists."""
 
-from .app import run_app
+from eagleclasslists.streamlit_app.__main__ import main
 
-
-def app() -> NoReturn:
-    run_app()
+__all__ = ["main"]

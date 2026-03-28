@@ -75,7 +75,7 @@ typing=[
 ]
 
 [project.scripts]
-ecl = "eagleclasslists.streamlit_app:app"
+ecl = "eagleclasslists.streamlit_app:main"
 
 [project.urls]
 Homepage = "https://github.com/allrisc/EagleClassLists"
