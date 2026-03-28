@@ -18,10 +18,11 @@
 
 from __future__ import annotations
 
-import eagleclasslists
+from eagleclasslists import classlist
 
 
 def test_import() -> None:
-    assert isinstance(eagleclasslists.__version__, str)
-    assert isinstance(eagleclasslists.__author__, str)
-    assert eagleclasslists.__author__ == "Benjamin Davis"
+    assert isinstance(classlist.GradeList, type)
+    assert isinstance(classlist.Classroom, type)
+    assert isinstance(classlist.Teacher, type)
+    assert isinstance(classlist.Student, type)
