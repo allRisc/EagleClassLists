@@ -263,120 +263,123 @@ def render_students_page() -> None:
         st.info("No students added yet. Use the form above to add students.")
     else:
         for idx, student in enumerate(grade_list.students):
-            with st.container():
-                col1, col2, col3 = st.columns([3, 2, 1])
+            col1, col2, col3 = st.columns([3, 4, 2])
 
-                with col1:
-                    st.write(f"**{student.first_name} {student.last_name}**")
-                    st.write(f"Gender: {student.gender.value}")
+            with col1:
+                st.write(f"**{student.first_name} {student.last_name}**")
 
-                with col2:
-                    st.write(f"Academics: {student.academics.value}")
-                    st.write(f"Behavior: {student.behavior.value}")
-                    if student.cluster:
-                        st.write(f"Cluster: {student.cluster.value}")
-                    if student.resource:
-                        st.write("Resource: Yes")
-                    if student.speech:
-                        st.write("Speech: Yes")
+            with col2:
+                attrs = [
+                    student.gender.value,
+                    f"A:{student.academics.value}",
+                    f"B:{student.behavior.value}",
+                ]
+                if student.cluster:
+                    attrs.append(f"C:{student.cluster.value}")
+                if student.resource:
+                    attrs.append("R")
+                if student.speech:
+                    attrs.append("S")
+                st.write(" • ".join(attrs))
 
-                with col3:
+            with col3:
+                btn_col1, btn_col2 = st.columns(2)
+                with btn_col1:
                     if st.button("Edit", key=f"edit_student_{idx}"):
                         st.session_state[f"editing_student_{idx}"] = True
 
+                with btn_col2:
                     if st.button("Remove", key=f"remove_student_{idx}"):
                         st.session_state.student_to_remove = (student.first_name, student.last_name)
 
-                # Edit form
-                if st.session_state.get(f"editing_student_{idx}", False):
-                    with st.form(f"edit_student_form_{idx}"):
-                        c1, c2 = st.columns(2)
+            # Edit form
+            if st.session_state.get(f"editing_student_{idx}", False):
+                with st.form(f"edit_student_form_{idx}"):
+                    c1, c2 = st.columns(2)
 
-                        with c1:
-                            new_first = st.text_input(
-                                "First Name",
-                                value=student.first_name,
-                                key=f"edit_first_{idx}",
-                            )
-                            new_gender = st.selectbox(
-                                "Gender",
-                                options=list(Gender),
-                                index=list(Gender).index(student.gender),
-                                format_func=lambda x: x.value,
-                                key=f"edit_gender_{idx}",
-                            )
-                            new_academics = st.selectbox(
-                                "Academics",
-                                options=list(Academics),
-                                index=list(Academics).index(student.academics),
-                                format_func=lambda x: x.value,
-                                key=f"edit_academics_{idx}",
-                            )
-                            cluster_options: Sequence[Cluster | None] = [None, *list(Cluster)]
-                            new_cluster = st.selectbox(
-                                "Cluster",
-                                options=list(cluster_options),
-                                index=cluster_options.index(student.cluster)
-                                if student.cluster in cluster_options
-                                else 0,
-                                format_func=lambda x: x.value if x else "None",
-                                key=f"edit_cluster_{idx}",
-                            )
+                    with c1:
+                        new_first = st.text_input(
+                            "First Name",
+                            value=student.first_name,
+                            key=f"edit_first_{idx}",
+                        )
+                        new_gender = st.selectbox(
+                            "Gender",
+                            options=list(Gender),
+                            index=list(Gender).index(student.gender),
+                            format_func=lambda x: x.value,
+                            key=f"edit_gender_{idx}",
+                        )
+                        new_academics = st.selectbox(
+                            "Academics",
+                            options=list(Academics),
+                            index=list(Academics).index(student.academics),
+                            format_func=lambda x: x.value,
+                            key=f"edit_academics_{idx}",
+                        )
+                        cluster_options: Sequence[Cluster | None] = [None, *list(Cluster)]
+                        new_cluster = st.selectbox(
+                            "Cluster",
+                            options=list(cluster_options),
+                            index=cluster_options.index(student.cluster)
+                            if student.cluster in cluster_options
+                            else 0,
+                            format_func=lambda x: x.value if x else "None",
+                            key=f"edit_cluster_{idx}",
+                        )
 
-                        with c2:
-                            new_last = st.text_input(
-                                "Last Name",
-                                value=student.last_name,
-                                key=f"edit_last_{idx}",
-                            )
-                            new_behavior = st.selectbox(
-                                "Behavior",
-                                options=list(Behavior),
-                                index=list(Behavior).index(student.behavior),
-                                format_func=lambda x: x.value,
-                                key=f"edit_behavior_{idx}",
-                            )
-                            new_resource = st.checkbox(
-                                "Resource",
-                                value=student.resource,
-                                key=f"edit_resource_{idx}",
-                            )
-                            new_speech = st.checkbox(
-                                "Speech",
-                                value=student.speech,
-                                key=f"edit_speech_{idx}",
-                            )
+                    with c2:
+                        new_last = st.text_input(
+                            "Last Name",
+                            value=student.last_name,
+                            key=f"edit_last_{idx}",
+                        )
+                        new_behavior = st.selectbox(
+                            "Behavior",
+                            options=list(Behavior),
+                            index=list(Behavior).index(student.behavior),
+                            format_func=lambda x: x.value,
+                            key=f"edit_behavior_{idx}",
+                        )
+                        new_resource = st.checkbox(
+                            "Resource",
+                            value=student.resource,
+                            key=f"edit_resource_{idx}",
+                        )
+                        new_speech = st.checkbox(
+                            "Speech",
+                            value=student.speech,
+                            key=f"edit_speech_{idx}",
+                        )
 
-                        col_save, col_cancel = st.columns(2)
-                        with col_save:
-                            if st.form_submit_button("Save Changes"):
-                                old_first, old_last = student.first_name, student.last_name
-                                student.first_name = new_first.strip()
-                                student.last_name = new_last.strip()
-                                student.gender = new_gender
-                                student.academics = new_academics
-                                student.behavior = new_behavior
-                                student.cluster = new_cluster if new_cluster else None
-                                student.resource = new_resource
-                                student.speech = new_speech
+                    btn_col1, btn_col2 = st.columns(2)
+                    with btn_col1:
+                        if st.form_submit_button("Save Changes"):
+                            old_first, old_last = student.first_name, student.last_name
+                            student.first_name = new_first.strip()
+                            student.last_name = new_last.strip()
+                            student.gender = new_gender
+                            student.academics = new_academics
+                            student.behavior = new_behavior
+                            student.cluster = new_cluster if new_cluster else None
+                            student.resource = new_resource
+                            student.speech = new_speech
 
-                                # Update references in classrooms
-                                for classroom in grade_list.classes:
-                                    for s in classroom.students:
-                                        if s.first_name == old_first and s.last_name == old_last:
-                                            s.first_name = new_first.strip()
-                                            s.last_name = new_last.strip()
+                            # Update references in classrooms
+                            for classroom in grade_list.classes:
+                                for s in classroom.students:
+                                    if s.first_name == old_first and s.last_name == old_last:
+                                        s.first_name = new_first.strip()
+                                        s.last_name = new_last.strip()
 
-                                st.session_state[f"editing_student_{idx}"] = False
-                                st.success("Student updated!")
-                                st.rerun()
+                            st.session_state[f"editing_student_{idx}"] = False
+                            st.success("Student updated!")
+                            st.rerun()
 
-                        with col_cancel:
-                            if st.form_submit_button("Cancel"):
-                                st.session_state[f"editing_student_{idx}"] = False
-                                st.rerun()
-
-                st.divider()
+                    with btn_col2:
+                        if st.form_submit_button("Cancel"):
+                            st.session_state[f"editing_student_{idx}"] = False
+                            st.rerun()
 
 
 def render_assignments_page() -> None:

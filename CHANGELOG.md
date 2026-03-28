@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Improved teachers list layout in Streamlit app to be more compact with horizontal button layout
+- Improved students list layout to be more compact with consolidated attributes display
 
 0.1.0
 ----------------------------------------------------------------------
