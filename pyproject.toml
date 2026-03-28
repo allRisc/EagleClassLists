@@ -46,9 +46,8 @@ keywords = ["rtl", "hdl", "packaging", "Verilog", "UVM", "SystemVerilog"]
 requires-python = ">=3.12"
 
 dependencies = [
+    "openpyxl>=3.1.0",
     "pydantic>=2.12.5",
-    "pyyaml>=6.0.3",
-    "resolvelib>=1.2.1",
 ]
 
 [dependency-groups]
@@ -71,7 +70,7 @@ tests=[
 ]
 typing=[
     "mypy>=1.4.1",
-    "types-pyyaml>=6.0.12.20250516",
+    "types-openpyxl>=3.1.5.20260322",
 ]
 
 [project.scripts]
