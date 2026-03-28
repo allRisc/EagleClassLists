@@ -271,15 +271,15 @@ def render_students_page() -> None:
             with col2:
                 attrs = [
                     student.gender.value,
-                    f"A:{student.academics.value}",
-                    f"B:{student.behavior.value}",
+                    f"📚 {student.academics.value}",
+                    f"😊 {student.behavior.value}",
                 ]
                 if student.cluster:
-                    attrs.append(f"C:{student.cluster.value}")
+                    attrs.append(f"🎯 {student.cluster.value}")
                 if student.resource:
-                    attrs.append("R")
+                    attrs.append("🔧 Resource")
                 if student.speech:
-                    attrs.append("S")
+                    attrs.append("🗣️ Speech")
                 st.write(" • ".join(attrs))
 
             with col3:
