@@ -48,6 +48,7 @@ requires-python = ">=3.12"
 dependencies = [
     "openpyxl>=3.1.0",
     "pydantic>=2.12.5",
+    "streamlit>=1.55.0",
 ]
 
 [dependency-groups]
@@ -74,7 +75,7 @@ typing=[
 ]
 
 [project.scripts]
-ecl = "eagleclasslists.streamlit:app"
+ecl = "eagleclasslists.streamlit_app:app"
 
 [project.urls]
 Homepage = "https://github.com/allrisc/EagleClassLists"
