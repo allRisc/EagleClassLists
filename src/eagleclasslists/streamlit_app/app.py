@@ -557,13 +557,24 @@ def render_save_load_page() -> None:
                 key="save_filename",
             )
 
-            if st.button("Save to Excel"):
-                try:
-                    grade_list.save_to_excel(filename)
-                    st.session_state.current_file = filename
-                    st.success(f"Saved to {filename}")
-                except Exception as e:
-                    st.error(f"Error saving file: {e}")
+            # Prepare the Excel data for download
+            try:
+                import io
+
+                buffer = io.BytesIO()
+                grade_list.save_to_excel(buffer)
+                buffer.seek(0)
+                excel_data = buffer.getvalue()
+
+                st.download_button(
+                    label="Save to Excel",
+                    data=excel_data,
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    on_click=lambda: setattr(st.session_state, "current_file", filename),
+                )
+            except Exception as e:
+                st.error(f"Error preparing file: {e}")
 
     with col2:
         st.subheader("Load from Excel")

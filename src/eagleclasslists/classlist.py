@@ -28,7 +28,7 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 
 if TYPE_CHECKING:
     pass
@@ -100,14 +100,15 @@ class GradeList:
     students: list[Student]
     """List of Student objects in this grade."""
 
-    def save_to_excel(self, filepath: str | Path) -> None:
+    def save_to_excel(self, filepath: str | Path | BinaryIO) -> None:
         """Save the grade list to an Excel file with three sheets.
 
         Creates an Excel file with "Teachers", "Students", and "Classrooms"
         sheets following the Option C structure.
 
         Args:
-            filepath: Path to the Excel file to create.
+            filepath: Path to the Excel file to create, or a file-like object
+                to write to.
 
         Raises:
             ImportError: If openpyxl is not installed.
