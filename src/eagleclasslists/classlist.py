@@ -37,49 +37,49 @@ if TYPE_CHECKING:
 class Gender(enum.StrEnum):
     """Enumeration of student gender options."""
 
-    MALE = enum.auto()
+    MALE = "Male"
     """Male gender."""
 
-    FEMALE = enum.auto()
+    FEMALE = "Female"
     """Female gender."""
 
 
 class Academics(enum.StrEnum):
     """Enumeration of academic performance levels."""
 
-    HIGH = enum.auto()
+    HIGH = "High"
     """High academic performance."""
 
-    MEDIUM = enum.auto()
+    MEDIUM = "Medium"
     """Medium academic performance."""
 
-    LOW = enum.auto()
+    LOW = "Low"
     """Low academic performance."""
 
 
 class Behavior(enum.StrEnum):
     """Enumeration of behavior performance levels."""
 
-    HIGH = enum.auto()
+    HIGH = "High"
     """High behavior rating (good behavior)."""
 
-    MEDIUM = enum.auto()
+    MEDIUM = "Medium"
     """Medium behavior rating."""
 
-    LOW = enum.auto()
+    LOW = "Low"
     """Low behavior rating (needs improvement)."""
 
 
 class Cluster(enum.StrEnum):
     """Enumeration of special program clusters."""
 
-    AC = enum.auto()
+    AC = "AC"
     """Academically Challenged cluster."""
 
-    GEM = enum.auto()
+    GEM = "GEM"
     """Gifted Education Model cluster."""
 
-    EL = enum.auto()
+    EL = "EL"
     """English Learner cluster."""
 
 
