@@ -51,8 +51,6 @@ def init_session_state() -> None:
         st.session_state.teacher_to_remove = None
     if "student_to_remove" not in st.session_state:
         st.session_state.student_to_remove = None
-    if "assignment_to_remove" not in st.session_state:
-        st.session_state.assignment_to_remove = None
 
 
 def st_app() -> None:

@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Streamlit app now has a "Shutdown Server" button in the sidebar for clean shutdown
 - Signal handlers for graceful shutdown on SIGINT (Ctrl+C) and SIGTERM
+- **Redesigned Assignments page** with visual student cards and teacher columns
+  - Click-to-select students with visual feedback
+  - Quick assign buttons for each student
+  - Move students between teachers with dropdown selection
+  - Auto-balance feature to evenly distribute unassigned students
+  - Progress bar showing assignment completion
+  - Visual teacher columns with cluster-based color coding
 
 ### Changed
 - Improved teachers list layout in Streamlit app to be more compact with horizontal button layout
