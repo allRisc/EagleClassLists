@@ -28,10 +28,11 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, BinaryIO
+from typing import Any, BinaryIO, ClassVar
 
-if TYPE_CHECKING:
-    pass
+from openpyxl import Workbook, load_workbook
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
 
 
 class Gender(enum.StrEnum):
@@ -91,6 +92,22 @@ class GradeList:
     list of classrooms, all teachers, and all students at that grade.
     """
 
+    STUDENT_HEADER_MAPPING: ClassVar[dict[str, str]] = {
+        "first_name": "First Name",
+        "last_name": "Last Name",
+        "gender": "Gender",
+        "academics": "Academics",
+        "behavior": "Behavior",
+        "cluster": "Cluster",
+        "resource": "Resource",
+        "speech": "Speech",
+    }
+
+    TEACHER_HEADER_MAPPING: ClassVar[dict[str, str]] = {
+        "name": "Name",
+        "clusters": "Clusters",
+    }
+
     classes: list[Classroom]
     """List of Classroom objects in this grade."""
 
@@ -109,58 +126,66 @@ class GradeList:
         Args:
             filepath: Path to the Excel file to create, or a file-like object
                 to write to.
-
-        Raises:
-            ImportError: If openpyxl is not installed.
         """
-        try:
-            from openpyxl import Workbook
-        except ImportError as err:
-            raise ImportError(
-                "openpyxl is required for Excel support. Install it with: uv add openpyxl"
-            ) from err
-
         wb = Workbook()
 
         # Remove default sheet and create our three sheets
         if wb.active is not None:
             wb.remove(wb.active)
+
+        self._save_teachers(wb)
+        self._save_students(wb)
+        self._save_classrooms(wb)
+
+        wb.save(filepath)
+
+    def _save_teachers(self, wb: Workbook) -> None:
+        """Save the list of teachers to a 'Teachers' sheet in the provided workbook.
+
+        Args:
+            wb: The excel workbook to save to.
+        """
         teachers_sheet = wb.create_sheet("Teachers")
-        students_sheet = wb.create_sheet("Students")
-        classrooms_sheet = wb.create_sheet("Classrooms")
 
         # Write Teachers sheet
-        teachers_sheet.append(["name", "clusters"])
+        teachers_sheet.append(
+            [
+                CellRichText(TextBlock(InlineFont(b=True), heading))
+                for heading in self.TEACHER_HEADER_MAPPING.values()
+            ]
+        )
         for teacher in self.teachers:
-            clusters_str = ", ".join(str(c) for c in teacher.clusters)
-            teachers_sheet.append([teacher.name, clusters_str])
+            teachers_sheet.append([
+                _attr_to_save_str(teacher, attr) for attr in self.TEACHER_HEADER_MAPPING.keys()
+            ])
+
+    def _save_students(self, wb: Workbook) -> None:
+        """Save the list of students to a 'Students' sheet in the provided workbook.
+
+        Args:
+            wb: The excel workbook to save to.
+        """
+        students_sheet = wb.create_sheet("Students")
 
         # Write Students sheet
         students_sheet.append(
             [
-                "first_name",
-                "last_name",
-                "gender",
-                "academics",
-                "behavior",
-                "cluster",
-                "resource",
-                "speech",
+                CellRichText(TextBlock(InlineFont(b=True), heading))
+                for heading in self.STUDENT_HEADER_MAPPING.values()
             ]
         )
         for student in self.students:
-            students_sheet.append(
-                [
-                    student.first_name,
-                    student.last_name,
-                    str(student.gender),
-                    str(student.academics),
-                    str(student.behavior),
-                    str(student.cluster) if student.cluster else "",
-                    "TRUE" if student.resource else "FALSE",
-                    "TRUE" if student.speech else "FALSE",
-                ]
-            )
+            students_sheet.append([
+                _attr_to_save_str(student, attr) for attr in self.STUDENT_HEADER_MAPPING.keys()
+            ])
+
+    def _save_classrooms(self, wb: Workbook) -> None:
+        """Save a mapping of teachers to students to the 'Classrooms' sheet of the workbook.
+
+        Args:
+            wb: The excel workbook to save to.
+        """
+        classrooms_sheet = wb.create_sheet("Classrooms")
 
         # Write Classrooms sheet
         classrooms_sheet.append(["teacher_name", "student_first", "student_last"])
@@ -169,8 +194,6 @@ class GradeList:
                 classrooms_sheet.append(
                     [classroom.teacher.name, student.first_name, student.last_name]
                 )
-
-        wb.save(filepath)
 
     @classmethod
     def from_excel(cls, filepath: str | Path) -> GradeList:
@@ -186,19 +209,32 @@ class GradeList:
             A GradeList object populated from the Excel data.
 
         Raises:
-            ImportError: If openpyxl is not installed.
             ValueError: If the Excel file has invalid data.
         """
-        try:
-            from openpyxl import load_workbook
-        except ImportError as err:
-            raise ImportError(
-                "openpyxl is required for Excel support. Install it with: uv add openpyxl"
-            ) from err
-
         wb = load_workbook(filepath)
 
-        # Read Teachers sheet
+        teachers = cls._load_teachers_dict(wb)
+        students = cls._load_students_dict(wb)
+        classrooms = cls._load_classroms(wb, students, teachers)
+
+        # Update teacher references in students
+        for classroom in classrooms:
+            for student in classroom.students:
+                student.teacher = classroom.teacher
+
+        return cls(
+            classes=classrooms,
+            teachers=list(teachers.values()),
+            students=list(students.values()),
+        )
+
+    @staticmethod
+    def _load_teachers_dict(wb: Workbook) -> dict[str, Teacher]:
+        """Load a dictionary with the teacher definitions from the excel workbook.
+
+        Args:
+            wb: The excel workbook to load from.
+        """
         teachers_sheet = wb["Teachers"]
         teachers: dict[str, Teacher] = {}
         for row in teachers_sheet.iter_rows(min_row=2, values_only=True):
@@ -209,6 +245,15 @@ class GradeList:
             cluster_list = [Cluster(c.strip()) for c in clusters_str.split(",") if c.strip()]
             teachers[name] = Teacher(name=name, clusters=cluster_list)
 
+        return teachers
+
+    @staticmethod
+    def _load_students_dict(wb: Workbook) -> dict[tuple[str, str], Student]:
+        """Load a dictionary with the student definitions from the excel workbook.
+
+        Args:
+            wb: The excel workbook to load from.
+        """
         # Read Students sheet
         students_sheet = wb["Students"]
         students: dict[tuple[str, str], Student] = {}
@@ -235,7 +280,29 @@ class GradeList:
                 speech=speech,
             )
             students[(first_name, last_name)] = student
+        return students
 
+    @staticmethod
+    def _load_classroms(
+        wb: Workbook,
+        students: dict[tuple[str, str], Student],
+        teachers: dict[str, Teacher]
+    ) -> list[Classroom]:
+        """Load a list of classrooms based on the excel file and the previously found teachers and
+        students.
+
+        Args:
+            wb: The excel workbook to load from.
+            students: The dictionary mapping first and last names of students to their corresponding
+                Student object.
+            teachers: The dictionary mapping of teacher names to the corresponding Teacher object.
+
+        Returns:
+            A list of classroom objects
+
+        Raises:
+            ValueError: If a specified student or teacher is not valid.
+        """
         # Read Classrooms sheet and build classroom structure
         classrooms_sheet = wb["Classrooms"]
         classroom_map: dict[str, list[Student]] = {}
@@ -260,16 +327,7 @@ class GradeList:
                     Classroom(teacher=teachers[teacher_name], students=student_list)
                 )
 
-        # Update teacher references in students
-        for classroom in classroom_list:
-            for student in classroom.students:
-                student.teacher = classroom.teacher
-
-        return cls(
-            classes=classroom_list,
-            teachers=list(teachers.values()),
-            students=list(students.values()),
-        )
+        return classroom_list
 
 
 @dataclass
@@ -324,3 +382,27 @@ class Student:
 
     speech: bool = False
     """Whether the student receives speech services."""
+
+
+def _attr_to_save_str(obj: Any, attr: str) -> str:
+    if attr != "" and not hasattr(obj, attr):
+        raise ValueError(f"Object of type {type(obj).__name__} does not have attr '{attr}'")
+
+    if attr == "":
+        val = obj
+    else:
+        val = getattr(obj, attr)
+
+    if val is None:
+        return ""
+
+    if isinstance(val, str):
+        return val
+
+    if isinstance(val, list):
+        return ", ".join([_attr_to_save_str(item, "") for item in val])
+
+    if isinstance(val, bool):
+        return "TRUE" if val else "FALSE"
+
+    return str(val)
