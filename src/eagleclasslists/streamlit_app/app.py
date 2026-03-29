@@ -67,6 +67,18 @@ def st_app() -> None:
         layout="wide",
     )
 
+    # Hide default Streamlit page navigation from sidebar
+    st.markdown(
+        """
+        <style>
+        [data-testid="stSidebarNav"] {
+            display: none;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     init_session_state()
 
     st.title("📚 Eagle Class Lists")
