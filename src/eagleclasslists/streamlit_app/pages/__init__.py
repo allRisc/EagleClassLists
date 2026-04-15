@@ -18,13 +18,13 @@
 
 """Page modules for the Streamlit application."""
 
-from eagleclasslists.streamlit_app.pages.assignments import render_assignments_page
+from eagleclasslists.streamlit_app.pages.classrooms import render_classrooms_page
 from eagleclasslists.streamlit_app.pages.save_load import render_save_load_page
 from eagleclasslists.streamlit_app.pages.students import render_students_page
 from eagleclasslists.streamlit_app.pages.teachers import render_teachers_page
 
 __all__ = [
-    "render_assignments_page",
+    "render_classrooms_page",
     "render_save_load_page",
     "render_students_page",
     "render_teachers_page",

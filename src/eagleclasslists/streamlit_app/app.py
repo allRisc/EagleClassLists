@@ -34,7 +34,7 @@ import streamlit as st
 
 from eagleclasslists.classlist import GradeList
 from eagleclasslists.streamlit_app.pages import (
-    render_assignments_page,
+    render_classrooms_page,
     render_save_load_page,
     render_students_page,
     render_teachers_page,
@@ -80,13 +80,13 @@ def st_app() -> None:
     init_session_state()
 
     st.title("📚 Eagle Class Lists")
-    st.write("Manage students, teachers, and classroom assignments")
+    st.write("Manage students, teachers, and classroom configurations")
 
     # Sidebar navigation
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Select Page",
-        options=["Teachers", "Students", "Assignments", "Download / Load"],
+        options=["Teachers", "Students", "Classrooms", "Save/Load"],
     )
 
     # Display current file info
@@ -112,9 +112,9 @@ def st_app() -> None:
         render_teachers_page()
     elif page == "Students":
         render_students_page()
-    elif page == "Assignments":
-        render_assignments_page()
-    elif page == "Download / Load":
+    elif page == "Classrooms":
+        render_classrooms_page()
+    elif page == "Save/Load":
         render_save_load_page()
 
 

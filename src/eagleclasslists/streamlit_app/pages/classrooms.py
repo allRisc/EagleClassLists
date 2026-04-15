@@ -16,7 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ####################################################################################################
 
-"""Student assignments page for the Streamlit app."""
+"""Classroom management page for the Streamlit app."""
 
 from __future__ import annotations
 
@@ -120,9 +120,9 @@ def _add_student_to_teacher(
         student.teacher = teacher.name
 
 
-def render_assignments_page() -> None:
-    """Render the assignments page for managing student-teacher assignments."""
-    st.header("Student Assignments")
+def render_classrooms_page() -> None:
+    """Render the classrooms page for managing student-teacher assignments."""
+    st.header("Classroom Management")
     st.write(
         "Check the students you want to move, select a destination, then click 'Move Selected'."
     )
