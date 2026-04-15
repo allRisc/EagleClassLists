@@ -86,7 +86,7 @@ def st_app() -> None:
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Select Page",
-        options=["Teachers", "Students", "Assignments", "Save/Load"],
+        options=["Teachers", "Students", "Assignments", "Download / Load"],
     )
 
     # Display current file info
@@ -114,7 +114,7 @@ def st_app() -> None:
         render_students_page()
     elif page == "Assignments":
         render_assignments_page()
-    elif page == "Save/Load":
+    elif page == "Download / Load":
         render_save_load_page()
 
 

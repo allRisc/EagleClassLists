@@ -29,19 +29,19 @@ from eagleclasslists.classlist import GradeList
 
 
 def render_save_load_page() -> None:
-    """Render the save/load page for Excel file operations."""
-    st.header("Save / Load")
-    st.write("Save your grade list to an Excel file or load from an existing file.")
+    """Render the download/load page for Excel file operations."""
+    st.header("Download / Load")
+    st.write("Download your grade list as an Excel file or load from an existing file.")
 
     grade_list: GradeList = st.session_state.grade_list
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Save to Excel")
+        st.subheader("Download Excel")
 
         if not grade_list.teachers and not grade_list.students:
-            st.info("No data to save yet. Add teachers and students first.")
+            st.info("No data to download yet. Add teachers and students first.")
         else:
             st.write(f"Teachers: {len(grade_list.teachers)}")
             st.write(f"Students: {len(grade_list.students)}")
@@ -61,17 +61,18 @@ def render_save_load_page() -> None:
                 excel_data = buffer.getvalue()
 
                 st.download_button(
-                    label="Save to Excel",
+                    label="Download Excel File",
                     data=excel_data,
                     file_name=filename,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    on_click=lambda: setattr(st.session_state, "current_file", filename),
+                    type="primary",
+                    use_container_width=True,
                 )
             except Exception as e:
                 st.error(f"Error preparing file: {e}")
 
     with col2:
-        st.subheader("Load from Excel")
+        st.subheader("Upload Excel")
 
         uploaded_file = st.file_uploader(
             "Choose an Excel file",
