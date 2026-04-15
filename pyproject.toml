@@ -53,6 +53,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pandas-stubs>=3.0.0.260204",
     "ruff>=0.13.0",
     "tox>=4.25.0",
     "tox-uv>=1.13.1",
@@ -89,6 +90,8 @@ max-line-length = 100
 [tool.mypy]
 warn_return_any = true
 pretty = true
+
+plugins = ['pydantic.mypy']
 
 python_version = "3.12"
 

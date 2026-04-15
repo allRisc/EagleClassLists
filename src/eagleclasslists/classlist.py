@@ -26,13 +26,13 @@ attributes.
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass, field
+import pprint
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, BinaryIO, ClassVar
+from typing import Any, BinaryIO
 
-from openpyxl import Workbook, load_workbook
-from openpyxl.cell.rich_text import CellRichText, TextBlock
-from openpyxl.cell.text import InlineFont
+import pandas as pd
+import pydantic
 
 
 class Gender(enum.StrEnum):
@@ -84,38 +84,76 @@ class Cluster(enum.StrEnum):
     """English Learner cluster."""
 
 
-@dataclass
-class GradeList:
+class GradeList(pydantic.BaseModel):
     """Represents a grade level with its classrooms, teachers, and students.
 
     This class holds all the data for a single grade level, including the
     list of classrooms, all teachers, and all students at that grade.
     """
 
-    STUDENT_HEADER_MAPPING: ClassVar[dict[str, str]] = {
-        "first_name": "First Name",
-        "last_name": "Last Name",
-        "gender": "Gender",
-        "academics": "Academics",
-        "behavior": "Behavior",
-        "cluster": "Cluster",
-        "resource": "Resource",
-        "speech": "Speech",
-    }
+    model_config = pydantic.ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
-    TEACHER_HEADER_MAPPING: ClassVar[dict[str, str]] = {
-        "name": "Name",
-        "clusters": "Clusters",
-    }
-
-    classes: list[Classroom]
-    """List of Classroom objects in this grade."""
-
-    teachers: list[Teacher]
+    teachers: list[Teacher] = pydantic.Field(alias="Teachers")
     """List of Teacher objects for this grade."""
 
-    students: list[Student]
+    students: list[Student] = pydantic.Field(alias="Students")
     """List of Student objects in this grade."""
+
+    classes: list[Classroom] = pydantic.Field(alias="Classes", default_factory=list)
+    """List of Classroom objects in this grade."""
+
+    @pydantic.field_validator("classes", mode="plain")
+    @classmethod
+    def validate_classes(cls, value: Any, info: pydantic.ValidationInfo) -> list[Classroom]:
+        if not isinstance(value, list):
+            raise TypeError("GradeList.classes must be a list")
+
+        classes: dict[str, Classroom] = {}
+
+        teacher_dict: dict[str, Teacher] = {
+            teacher.name: teacher for teacher in list(info.data["teachers"])
+        }
+        student_dict: dict[str, Student] = {
+            f"{student.first_name}_{student.last_name}": student
+            for student in list(info.data["students"])
+        }
+
+        for val in value:
+            if isinstance(val, Classroom):
+                classes[val.teacher.name] = val
+                continue
+
+            teacher_name = val["Teacher Name"]
+            student_name = f'{val["Student First Name"]}_{val["Student Last Name"]}'
+
+            if teacher_name not in teacher_dict:
+                raise ValueError(f"Teacher ({teacher_name}) specified in classroom not found")
+            if student_name not in student_dict:
+                raise ValueError(
+                    f"Student ({student_name.replace('_', ' ')}) specified in classroom not found"
+                )
+
+            teacher = teacher_dict[teacher_name]
+            student = student_dict[student_name]
+
+            if teacher.name in classes:
+                classes[teacher.name].students.append(student)
+            else:
+                classes[teacher.name] = Classroom(teacher, [student])
+
+        return list(classes.values())
+
+    @pydantic.field_serializer("classes", mode="plain")
+    def serialize_classes(self, value: list[Classroom]) -> list[dict[str, str]]:
+        serial_classes: list[dict[str, str]] = []
+        for classroom in value:
+            for student in classroom.students:
+                serial_classes.append({
+                    "Teacher Name": classroom.teacher.name,
+                    "Student First Name": student.first_name,
+                    "Student Last Name": student.last_name,
+                })
+        return serial_classes
 
     def save_to_excel(self, filepath: str | Path | BinaryIO) -> None:
         """Save the grade list to an Excel file with three sheets.
@@ -127,73 +165,19 @@ class GradeList:
             filepath: Path to the Excel file to create, or a file-like object
                 to write to.
         """
-        wb = Workbook()
+        pprint.pprint(self.model_dump())
+        with pd.ExcelWriter(filepath) as ew:
+            for sheet in self.model_dump():
+                self._list_attr_to_sheet(ew, attr=sheet)
 
-        # Remove default sheet and create our three sheets
-        if wb.active is not None:
-            wb.remove(wb.active)
-
-        self._save_teachers(wb)
-        self._save_students(wb)
-        self._save_classrooms(wb)
-
-        wb.save(filepath)
-
-    def _save_teachers(self, wb: Workbook) -> None:
-        """Save the list of teachers to a 'Teachers' sheet in the provided workbook.
+    def _list_attr_to_sheet(self, ew: pd.ExcelWriter, attr: str) -> None:
+        """Save the list for the attrs to the attr's sheet in the provided excel file
 
         Args:
-            wb: The excel workbook to save to.
+            ew: The excel writer to use
+            attr: The name of the attr to write
         """
-        teachers_sheet = wb.create_sheet("Teachers")
-
-        # Write Teachers sheet
-        teachers_sheet.append(
-            [
-                CellRichText(TextBlock(InlineFont(b=True), heading))
-                for heading in self.TEACHER_HEADER_MAPPING.values()
-            ]
-        )
-        for teacher in self.teachers:
-            teachers_sheet.append([
-                _attr_to_save_str(teacher, attr) for attr in self.TEACHER_HEADER_MAPPING.keys()
-            ])
-
-    def _save_students(self, wb: Workbook) -> None:
-        """Save the list of students to a 'Students' sheet in the provided workbook.
-
-        Args:
-            wb: The excel workbook to save to.
-        """
-        students_sheet = wb.create_sheet("Students")
-
-        # Write Students sheet
-        students_sheet.append(
-            [
-                CellRichText(TextBlock(InlineFont(b=True), heading))
-                for heading in self.STUDENT_HEADER_MAPPING.values()
-            ]
-        )
-        for student in self.students:
-            students_sheet.append([
-                _attr_to_save_str(student, attr) for attr in self.STUDENT_HEADER_MAPPING.keys()
-            ])
-
-    def _save_classrooms(self, wb: Workbook) -> None:
-        """Save a mapping of teachers to students to the 'Classrooms' sheet of the workbook.
-
-        Args:
-            wb: The excel workbook to save to.
-        """
-        classrooms_sheet = wb.create_sheet("Classrooms")
-
-        # Write Classrooms sheet
-        classrooms_sheet.append(["teacher_name", "student_first", "student_last"])
-        for classroom in self.classes:
-            for student in classroom.students:
-                classrooms_sheet.append(
-                    [classroom.teacher.name, student.first_name, student.last_name]
-                )
+        pd.DataFrame(self.model_dump()[attr]).to_excel(ew, sheet_name=attr, index=False)
 
     @classmethod
     def from_excel(cls, filepath: str | Path) -> GradeList:
@@ -211,123 +195,15 @@ class GradeList:
         Raises:
             ValueError: If the Excel file has invalid data.
         """
-        wb = load_workbook(filepath)
-
-        teachers = cls._load_teachers_dict(wb)
-        students = cls._load_students_dict(wb)
-        classrooms = cls._load_classroms(wb, students, teachers)
-
-        # Update teacher references in students
-        for classroom in classrooms:
-            for student in classroom.students:
-                student.teacher = classroom.teacher
-
-        return cls(
-            classes=classrooms,
-            teachers=list(teachers.values()),
-            students=list(students.values()),
-        )
-
-    @staticmethod
-    def _load_teachers_dict(wb: Workbook) -> dict[str, Teacher]:
-        """Load a dictionary with the teacher definitions from the excel workbook.
-
-        Args:
-            wb: The excel workbook to load from.
-        """
-        teachers_sheet = wb["Teachers"]
-        teachers: dict[str, Teacher] = {}
-        for row in teachers_sheet.iter_rows(min_row=2, values_only=True):
-            if not row[0]:
-                continue
-            name = str(row[0])
-            clusters_str = str(row[1]) if row[1] else ""
-            cluster_list = [Cluster(c.strip()) for c in clusters_str.split(",") if c.strip()]
-            teachers[name] = Teacher(name=name, clusters=cluster_list)
-
-        return teachers
-
-    @staticmethod
-    def _load_students_dict(wb: Workbook) -> dict[tuple[str, str], Student]:
-        """Load a dictionary with the student definitions from the excel workbook.
-
-        Args:
-            wb: The excel workbook to load from.
-        """
-        # Read Students sheet
-        students_sheet = wb["Students"]
-        students: dict[tuple[str, str], Student] = {}
-        for row in students_sheet.iter_rows(min_row=2, values_only=True):
-            if not row[0] or not row[1]:
-                continue
-            first_name = str(row[0])
-            last_name = str(row[1])
-            gender = Gender(str(row[2])) if row[2] else Gender.MALE
-            academics = Academics(str(row[3])) if row[3] else Academics.MEDIUM
-            behavior = Behavior(str(row[4])) if row[4] else Behavior.MEDIUM
-            cluster = Cluster(str(row[5])) if row[5] else None
-            resource = str(row[6]).upper() == "TRUE" if row[6] else False
-            speech = str(row[7]).upper() == "TRUE" if row[7] else False
-
-            student = Student(
-                first_name=first_name,
-                last_name=last_name,
-                gender=gender,
-                academics=academics,
-                behavior=behavior,
-                cluster=cluster,
-                resource=resource,
-                speech=speech,
+        with pd.ExcelFile(filepath) as ef:
+            return cls.model_validate(
+                {sheet: cls._sheet_to_clean_records(ef, str(sheet)) for sheet in ef.sheet_names}
             )
-            students[(first_name, last_name)] = student
-        return students
 
     @staticmethod
-    def _load_classroms(
-        wb: Workbook,
-        students: dict[tuple[str, str], Student],
-        teachers: dict[str, Teacher]
-    ) -> list[Classroom]:
-        """Load a list of classrooms based on the excel file and the previously found teachers and
-        students.
-
-        Args:
-            wb: The excel workbook to load from.
-            students: The dictionary mapping first and last names of students to their corresponding
-                Student object.
-            teachers: The dictionary mapping of teacher names to the corresponding Teacher object.
-
-        Returns:
-            A list of classroom objects
-
-        Raises:
-            ValueError: If a specified student or teacher is not valid.
-        """
-        # Read Classrooms sheet and build classroom structure
-        classrooms_sheet = wb["Classrooms"]
-        classroom_map: dict[str, list[Student]] = {}
-        for row in classrooms_sheet.iter_rows(min_row=2, values_only=True):
-            if not row[0] or not row[1] or not row[2]:
-                continue
-            teacher_name = str(row[0])
-            student_first = str(row[1])
-            student_last = str(row[2])
-
-            student_key = (student_first, student_last)
-            if student_key in students:
-                if teacher_name not in classroom_map:
-                    classroom_map[teacher_name] = []
-                classroom_map[teacher_name].append(students[student_key])
-
-        # Build Classroom objects
-        classroom_list: list[Classroom] = []
-        for teacher_name, student_list in classroom_map.items():
-            if teacher_name in teachers:
-                classroom_list.append(
-                    Classroom(teacher=teachers[teacher_name], students=student_list)
-                )
-
-        return classroom_list
+    def _sheet_to_clean_records(file: pd.ExcelFile, sheet_name: str) -> list[dict]:
+        df = file.parse(sheet_name=sheet_name)
+        return [row.dropna().to_dict() for _, row in df.iterrows()]
 
 
 @dataclass
@@ -341,46 +217,61 @@ class Classroom:
     """List of Student objects assigned to this classroom."""
 
 
-@dataclass
-class Teacher:
+class Teacher(pydantic.BaseModel):
     """Represents a teacher with their name and cluster qualifications."""
 
-    name: str
+    model_config = pydantic.ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    name: str = pydantic.Field(alias="Name")
     """The teacher's full name."""
 
-    clusters: list[Cluster] = field(default_factory=list)
+    clusters: list[Cluster] = pydantic.Field(alias="Clusters", default_factory=list)
     """List of Cluster types this teacher is qualified to teach."""
 
+    @pydantic.field_validator("clusters", mode="before")
+    @classmethod
+    def convert_clusters_to_list(cls, val: Any) -> Any:
+        if isinstance(val, str):
+            return [item.strip() for item in val.strip().split(",")]
+        return val
 
-@dataclass
-class Student:
+    @pydantic.field_serializer("clusters", mode="plain")
+    def convert_clusters_list_to_str(self, val: list[Cluster]) -> str:
+        return ", ".join([str(cluster) for cluster in val])
+
+
+class Student(pydantic.BaseModel):
     """Represents a student with their personal and academic attributes."""
 
-    first_name: str
+    model_config = pydantic.ConfigDict(
+        validate_by_name=True, validate_by_alias=True, serialize_by_alias=True
+    )
+
+    first_name: str = pydantic.Field(alias="First Name")
     """The student's first name."""
 
-    last_name: str
+    last_name: str = pydantic.Field(alias="Last Name")
     """The student's last name."""
 
-    gender: Gender
+    gender: Gender = pydantic.Field(alias="Gender")
     """The student's gender (Gender enum)."""
 
-    academics: Academics
+    academics: Academics = pydantic.Field(alias="Academics")
     """The student's academic performance level (Academics enum)."""
 
-    behavior: Behavior
+    behavior: Behavior = pydantic.Field(alias="Behavior")
     """The student's behavior rating (Behavior enum)."""
 
-    teacher: Teacher | None = None
+    teacher: str | None = pydantic.Field(alias="Teacher", default=None)
     """The assigned Teacher, or None if unassigned."""
 
-    cluster: Cluster | None = None
+    cluster: Cluster | None = pydantic.Field(alias="Cluster", default=None)
     """The student's Cluster assignment, or None."""
 
-    resource: bool = False
+    resource: bool = pydantic.Field(alias="Resource", default=False)
     """Whether the student receives resource services."""
 
-    speech: bool = False
+    speech: bool = pydantic.Field(alias="Speech", default=False)
     """Whether the student receives speech services."""
 
 

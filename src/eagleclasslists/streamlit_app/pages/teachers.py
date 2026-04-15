@@ -38,7 +38,7 @@ def render_teachers_page() -> None:
         grade_list.teachers = [t for t in grade_list.teachers if t.name != teacher_name]
         grade_list.classes = [c for c in grade_list.classes if c.teacher.name != teacher_name]
         for student in grade_list.students:
-            if student.teacher and student.teacher.name == teacher_name:
+            if student.teacher and student.teacher == teacher_name:
                 student.teacher = None
         st.session_state.teacher_to_remove = None
         st.success(f"Removed teacher: {teacher_name}")

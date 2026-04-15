@@ -306,7 +306,7 @@ class TestExcelSaveAndLoad:
         teacher = Teacher(name="Test", clusters=[])
         student = Student(
             first_name="Both",
-            last_name="True",
+            last_name="Name",
             gender=Gender.MALE,
             academics=Academics.MEDIUM,
             behavior=Behavior.MEDIUM,
@@ -329,7 +329,7 @@ class TestExcelSaveAndLoad:
         teacher = Teacher(name="Test", clusters=[])
         student = Student(
             first_name="Both",
-            last_name="False",
+            last_name="Name",
             gender=Gender.MALE,
             academics=Academics.MEDIUM,
             behavior=Behavior.MEDIUM,

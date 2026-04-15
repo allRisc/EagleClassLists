@@ -117,7 +117,7 @@ def _add_student_to_teacher(
 
     if not already_assigned:
         classroom.students.append(student)
-        student.teacher = teacher
+        student.teacher = teacher.name
 
 
 def render_assignments_page() -> None:
