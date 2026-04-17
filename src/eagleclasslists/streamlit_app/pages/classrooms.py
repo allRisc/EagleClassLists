@@ -25,6 +25,8 @@ from typing import Literal
 import streamlit as st
 
 from eagleclasslists.classlist import Classroom, GradeList, Student, Teacher
+from eagleclasslists.fitness import FitnessWeights, calculate_fitness, get_fitness_breakdown
+from eagleclasslists.simulated_annealing import AnnealingConfig, optimize_grade_list
 
 
 def _get_student_display_name(student: Student) -> str:
@@ -428,3 +430,325 @@ def render_classrooms_page() -> None:
         st.write(f"**Progress: {assigned_count}/{total_students} assigned**")
         progress_pct = assigned_count / total_students if total_students > 0 else 0
         st.progress(progress_pct)
+
+    # Simulated Annealing Optimization Section
+    st.divider()
+    st.header("🔬 Optimize Class Assignments")
+    st.write(
+        "Use simulated annealing to automatically find an optimal class "
+        "distribution that balances students across all classrooms."
+    )
+
+    _render_optimization_section(grade_list)
+
+
+def _render_optimization_section(grade_list: GradeList) -> None:
+    """Render the simulated annealing optimization section."""
+    # Initialize session state for optimization
+    if "optimization_running" not in st.session_state:
+        st.session_state.optimization_running = False
+    if "optimization_progress" not in st.session_state:
+        st.session_state.optimization_progress = 0
+    if "optimization_temp" not in st.session_state:
+        st.session_state.optimization_temp = 0.0
+    if "optimization_fitness" not in st.session_state:
+        st.session_state.optimization_fitness = 0.0
+
+    # Display current fitness
+    current_fitness = calculate_fitness(grade_list)
+    st.metric("Current Fitness Score", f"{current_fitness:.4f}")
+
+    # Fitness breakdown expander
+    with st.expander("📊 View Fitness Function Details", expanded=False):
+        _render_fitness_details(grade_list)
+
+    # Optimization controls
+    st.subheader("Optimization Settings")
+
+    opt_col1, opt_col2, opt_col3 = st.columns(3)
+
+    with opt_col1:
+        initial_temp = st.slider(
+            "Initial Temperature",
+            min_value=10.0,
+            max_value=200.0,
+            value=100.0,
+            step=10.0,
+            help="Higher values allow more exploration early on.",
+        )
+
+    with opt_col2:
+        cooling_rate = st.slider(
+            "Cooling Rate",
+            min_value=0.95,
+            max_value=0.999,
+            value=0.995,
+            step=0.001,
+            format="%.3f",
+            help="Rate at which temperature decreases. Higher = slower cooling.",
+        )
+
+    with opt_col3:
+        max_iterations = st.slider(
+            "Max Iterations",
+            min_value=1000,
+            max_value=50000,
+            value=10000,
+            step=1000,
+            help="Maximum number of iterations to run.",
+        )
+
+    # Fitness weights configuration
+    with st.expander("⚖️ Configure Fitness Weights", expanded=False):
+        st.write("Adjust the relative importance of each balancing factor:")
+
+        weight_col1, weight_col2, weight_col3 = st.columns(3)
+
+        with weight_col1:
+            gender_weight = st.slider("Gender", 0.0, 5.0, 1.0, 0.5)
+            academics_weight = st.slider("Academics", 0.0, 5.0, 1.0, 0.5)
+
+        with weight_col2:
+            behavior_weight = st.slider("Behavior", 0.0, 5.0, 1.0, 0.5)
+            class_size_weight = st.slider("Class Size", 0.0, 5.0, 1.0, 0.5)
+
+        with weight_col3:
+            resource_weight = st.slider("Resource", 0.0, 5.0, 0.5, 0.5)
+            speech_weight = st.slider("Speech", 0.0, 5.0, 0.5, 0.5)
+
+    # Check if we can run optimization
+    unassigned_count = len(
+        _get_unassigned_students(grade_list, _build_teacher_students_map(grade_list))
+    )
+
+    can_optimize = (
+        len(grade_list.teachers) >= 2 and len(grade_list.students) > 0 and unassigned_count == 0
+    )
+
+    if not can_optimize:
+        if len(grade_list.teachers) < 2:
+            st.warning("Need at least 2 teachers to optimize.")
+        elif len(grade_list.students) == 0:
+            st.warning("No students to optimize.")
+        elif unassigned_count > 0:
+            st.warning(
+                f"Please assign all {unassigned_count} unassigned students before optimizing."
+            )
+
+    # Run optimization button
+    if st.button(
+        "🚀 Run Simulated Annealing Optimization",
+        type="primary",
+        disabled=not can_optimize or st.session_state.optimization_running,
+        use_container_width=True,
+    ):
+        weights = FitnessWeights(
+            gender=gender_weight,
+            academics=academics_weight,
+            behavior=behavior_weight,
+            resource=resource_weight,
+            speech=speech_weight,
+            class_size=class_size_weight,
+        )
+
+        config = AnnealingConfig(
+            initial_temperature=initial_temp,
+            cooling_rate=cooling_rate,
+            max_iterations=max_iterations,
+        )
+
+        _run_optimization(grade_list, weights, config)
+
+    # Show results if optimization completed
+    if st.session_state.get("optimization_complete"):
+        st.success("✅ Optimization complete!")
+        _render_optimization_results(grade_list)
+
+
+def _render_fitness_details(grade_list: GradeList) -> None:
+    """Render detailed information about the fitness function."""
+    st.markdown("""
+    ### Fitness Function Overview
+
+    The fitness score ranges from **0.0 to 1.0**, where **1.0** represents a perfectly
+    balanced class distribution. The score is computed as a weighted average of
+    several component scores.
+    """)
+
+    # Get current breakdown
+    breakdown = get_fitness_breakdown(grade_list)
+
+    # Display component scores
+    st.subheader("Component Scores")
+
+    details_col1, details_col2 = st.columns(2)
+
+    with details_col1:
+        st.metric(
+            "🎯 Cluster (Hard Constraint)",
+            f"{breakdown['cluster']:.4f}",
+            help="Binary score: 1.0 if all cluster students are with qualified teachers, "
+            "0.0 if any violations exist. This is a hard constraint enforced by the algorithm.",
+        )
+        st.metric(
+            "⚤ Gender Balance",
+            f"{breakdown['gender']:.4f}",
+            help="Measures how evenly male and female students are distributed across classrooms.",
+        )
+        st.metric(
+            "📚 Academic Balance",
+            f"{breakdown['academics']:.4f}",
+            help="Measures how evenly academic performance levels (High/Medium/Low) "
+            "are distributed.",
+        )
+        st.metric(
+            "🎓 Behavior Balance",
+            f"{breakdown['behavior']:.4f}",
+            help="Measures how evenly behavior ratings (High/Medium/Low) are distributed.",
+        )
+
+    with details_col2:
+        st.metric(
+            "🏥 Resource Services",
+            f"{breakdown['resource']:.4f}",
+            help="Measures how evenly students receiving resource services are distributed.",
+        )
+        st.metric(
+            "🗣️ Speech Services",
+            f"{breakdown['speech']:.4f}",
+            help="Measures how evenly students receiving speech services are distributed.",
+        )
+        st.metric(
+            "👥 Class Size Balance",
+            f"{breakdown['class_size']:.4f}",
+            help="Measures how evenly students are distributed across classroom sizes.",
+        )
+        st.metric(
+            "📊 Overall Fitness",
+            f"{breakdown['overall']:.4f}",
+            help="Weighted average of all component scores (excluding cluster).",
+        )
+
+    st.markdown("""
+    ### How Scores Are Calculated
+
+    **Balance Metrics (Gender, Academics, Behavior, Resource, Speech):**
+    - Each metric measures how evenly the attribute is distributed across classrooms
+    - Uses exponential decay: `score = exp(-average_deviation)`
+    - A deviation of 0 (perfect balance) gives a score of 1.0
+    - Higher deviations result in lower scores
+
+    **Class Size Balance:**
+    - Uses coefficient of variation (CV = std_dev / mean)
+    - Score = `exp(-2 * CV)`
+    - Perfectly equal class sizes give a score of 1.0
+
+    **Cluster Constraint:**
+    - This is a **hard constraint**, not a weighted component
+    - If any student with a cluster assignment is placed with an unqualified teacher,
+      the overall fitness score becomes **0.0**
+    - The optimization algorithm actively prevents such moves
+
+    **Final Score:**
+    - Calculated as a weighted average: `(sum(weight_i * score_i)) / sum(weights)`
+    - Cluster score acts as a binary multiplier: if 0.0, final score is 0.0
+    - Result is clamped between 0.0 and 1.0
+    """)
+
+
+def _run_optimization(
+    grade_list: GradeList, weights: FitnessWeights, config: AnnealingConfig
+) -> None:
+    """Run the simulated annealing optimization."""
+    st.session_state.optimization_running = True
+    st.session_state.optimization_complete = False
+
+    # Progress placeholder
+    progress_placeholder = st.empty()
+    status_placeholder = st.empty()
+
+    def progress_callback(iteration: int, temperature: float, fitness: float) -> None:
+        """Update progress during optimization."""
+        progress = min(100, int(100 * iteration / config.max_iterations))
+        st.session_state.optimization_progress = progress
+        st.session_state.optimization_temp = temperature
+        st.session_state.optimization_fitness = fitness
+
+        progress_placeholder.progress(progress / 100.0)
+        status_placeholder.text(
+            f"Iteration {iteration:,} | Temperature: {temperature:.4f} | Fitness: {fitness:.4f}"
+        )
+
+    # Store pre-optimization state
+    st.session_state.pre_optimization_fitness = calculate_fitness(grade_list, weights)
+    st.session_state.pre_optimization_breakdown = get_fitness_breakdown(grade_list, weights)
+
+    # Run optimization
+    optimized = optimize_grade_list(
+        grade_list,
+        weights=weights,
+        config=config,
+        progress_callback=progress_callback,
+    )
+
+    # Update grade list with optimized result
+    st.session_state.grade_list = optimized
+
+    # Store post-optimization results
+    st.session_state.post_optimization_fitness = calculate_fitness(optimized, weights)
+    st.session_state.post_optimization_breakdown = get_fitness_breakdown(optimized, weights)
+
+    st.session_state.optimization_running = False
+    st.session_state.optimization_complete = True
+
+    progress_placeholder.empty()
+    status_placeholder.empty()
+
+    st.rerun()
+
+
+def _render_optimization_results(grade_list: GradeList) -> None:
+    """Render the optimization results comparison."""
+    st.subheader("Optimization Results")
+
+    pre_fitness = st.session_state.get("pre_optimization_fitness", 0.0)
+    post_fitness = st.session_state.get("post_optimization_fitness", 0.0)
+    pre_breakdown = st.session_state.get("pre_optimization_breakdown", {})
+    post_breakdown = st.session_state.get("post_optimization_breakdown", {})
+
+    # Overall improvement
+    improvement_col1, improvement_col2, improvement_col3 = st.columns(3)
+
+    with improvement_col1:
+        st.metric("Before Optimization", f"{pre_fitness:.4f}")
+
+    with improvement_col2:
+        st.metric("After Optimization", f"{post_fitness:.4f}")
+
+    with improvement_col3:
+        improvement = post_fitness - pre_fitness
+        improvement_pct = (improvement / pre_fitness * 100) if pre_fitness > 0 else 0
+        st.metric(
+            "Improvement",
+            f"{improvement:.4f}",
+            f"{improvement_pct:+.1f}%",
+        )
+
+    # Component comparison
+    with st.expander("📊 Detailed Component Comparison"):
+        comp_col1, comp_col2 = st.columns(2)
+
+        with comp_col1:
+            st.write("**Before Optimization:**")
+            for key, value in pre_breakdown.items():
+                st.write(f"- {key}: {value:.4f}")
+
+        with comp_col2:
+            st.write("**After Optimization:**")
+            for key, value in post_breakdown.items():
+                st.write(f"- {key}: {value:.4f}")
+
+    # Clear results button
+    if st.button("Clear Results", use_container_width=True):
+        st.session_state.optimization_complete = False
+        st.rerun()
