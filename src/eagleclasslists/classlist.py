@@ -292,6 +292,55 @@ class Student(pydantic.BaseModel):
     speech: bool = pydantic.Field(alias="Speech", default=False)
     """Whether the student receives speech services."""
 
+    @pydantic.model_validator(mode="before")
+    @classmethod
+    def set_ac_cluster_defaults(cls, data: Any) -> Any:
+        """Set default math, ELA, and behavior to Low for AC cluster students.
+
+        If a student is in the AC (Academically Challenged) cluster and no
+        math, ELA, or behavior values are provided, they default to Low.
+
+        Args:
+            data: The raw input data being validated.
+
+        Returns:
+            The data with defaults applied for AC cluster students.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        # Check if student is in AC cluster (handle both enum and string values)
+        cluster = data.get("cluster") or data.get("Cluster")
+        if cluster is None:
+            return data
+
+        # Normalize cluster value to check for AC
+        cluster_value = cluster
+        if isinstance(cluster, Cluster):
+            cluster_value = cluster.value
+        elif isinstance(cluster, str):
+            cluster_value = cluster.strip().upper()
+
+        if cluster_value != "AC":
+            return data
+
+        # Set defaults for AC cluster students if fields are not provided
+        # Check both alias and field names
+        math_fields = ("math", "Math")
+        ela_fields = ("ela", "ELA")
+        behavior_fields = ("behavior", "Behavior")
+
+        if not any(field in data and data[field] is not None for field in math_fields):
+            data["math"] = Math.LOW
+
+        if not any(field in data and data[field] is not None for field in ela_fields):
+            data["ela"] = ELA.LOW
+
+        if not any(field in data and data[field] is not None for field in behavior_fields):
+            data["behavior"] = Behavior.LOW
+
+        return data
+
     @pydantic.field_validator("gender", mode="before")
     @classmethod
     def parse_gender(cls, val: Any) -> Any:
