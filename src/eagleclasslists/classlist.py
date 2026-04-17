@@ -292,6 +292,83 @@ class Student(pydantic.BaseModel):
     speech: bool = pydantic.Field(alias="Speech", default=False)
     """Whether the student receives speech services."""
 
+    @pydantic.field_validator("gender", mode="before")
+    @classmethod
+    def parse_gender(cls, val: Any) -> Any:
+        """Parse gender values from various input formats.
+
+        Accepts:
+        - Gender enum values directly
+        - Case-insensitive strings: "male", "female"
+        - Abbreviations: "m", "f" (case-insensitive)
+
+        Args:
+            val: The value to parse as a gender.
+
+        Returns:
+            The parsed Gender enum value or the original value for further processing.
+        """
+        if isinstance(val, Gender):
+            return val
+
+        if isinstance(val, str):
+            cleaned = val.strip().lower()
+
+            # Map abbreviations and variations to enum values
+            if cleaned in ("male", "m"):
+                return Gender.MALE
+            if cleaned in ("female", "f"):
+                return Gender.FEMALE
+
+        return val
+
+    @pydantic.field_validator("math", "ela", "behavior", mode="before")
+    @classmethod
+    def parse_level_enum(cls, val: Any, info: pydantic.ValidationInfo) -> Any:
+        """Parse level enum values (High/Medium/Low) from various input formats.
+
+        Accepts:
+        - Enum values directly (Math, ELA, or Behavior)
+        - Case-insensitive strings: "high", "medium", "low"
+        - Abbreviations: "h", "m", "l" (case-insensitive)
+
+        Args:
+            val: The value to parse.
+            info: Validation info containing the field name.
+
+        Returns:
+            The parsed enum value or the original value for further processing.
+        """
+        field_name = info.field_name
+
+        # Get the expected enum type based on field name
+        enum_type: type[Math] | type[ELA] | type[Behavior]
+        if field_name == "math":
+            enum_type = Math
+        elif field_name == "ela":
+            enum_type = ELA
+        elif field_name == "behavior":
+            enum_type = Behavior
+        else:
+            return val
+
+        # If already the correct enum type, return it
+        if isinstance(val, enum_type):
+            return val
+
+        if isinstance(val, str):
+            cleaned = val.strip().lower()
+
+            # Map abbreviations and variations to enum values
+            if cleaned in ("high", "h"):
+                return enum_type.HIGH
+            if cleaned in ("medium", "m"):
+                return enum_type.MEDIUM
+            if cleaned in ("low", "l"):
+                return enum_type.LOW
+
+        return val
+
     @pydantic.field_validator("resource", "speech", mode="before")
     @classmethod
     def parse_boolean(cls, val: Any) -> bool:
