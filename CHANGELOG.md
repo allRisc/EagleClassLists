@@ -6,6 +6,16 @@ All notable changes to ``EagleClassLists`` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Unreleased
+----------------------------------------------------------------------
+
+### Added
+- **Improved Excel error reporting** - Better error messages when loading poorly formatted Excel files
+  - New ``ExcelImportError`` exception with user-friendly messages and detailed suggestions
+  - Helpful error messages for missing sheets, invalid data, and validation failures
+  - Streamlit UI now shows detailed guidance in expandable sections
+  - Common issues are explained (missing columns, invalid enum values, etc.)
+
 0.4.0
 ----------------------------------------------------------------------
 

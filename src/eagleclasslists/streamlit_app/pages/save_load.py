@@ -25,7 +25,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from eagleclasslists.classlist import GradeList
+from eagleclasslists.classlist import ExcelImportError, GradeList
 
 
 def render_save_load_page() -> None:
@@ -99,5 +99,21 @@ def render_save_load_page() -> None:
                         f"Loaded {len(loaded.teachers)} teachers, {len(loaded.students)} students"
                     )
                     st.rerun()
+                except ExcelImportError as e:
+                    # Clean up temp file if it exists
+                    if temp_path.exists():
+                        temp_path.unlink()
+
+                    # Show user-friendly error message
+                    st.error(f"**{e.message}**")
+                    if e.details:
+                        with st.expander("Show details and suggestions"):
+                            st.markdown(f"```\n{e.details}\n```")
                 except Exception as e:
-                    st.error(f"Error loading file: {e}")
+                    # Clean up temp file if it exists
+                    if temp_path.exists():
+                        temp_path.unlink()
+
+                    st.error(f"**Error loading file:** {e}")
+                    with st.expander("Show technical details"):
+                        st.exception(e)

@@ -35,6 +35,21 @@ import pandas as pd
 import pydantic
 
 
+class ExcelImportError(Exception):
+    """Custom exception for Excel import errors with user-friendly messages."""
+
+    def __init__(self, message: str, details: str | None = None) -> None:
+        """Initialize the error with a message and optional details.
+
+        Args:
+            message: User-friendly error message.
+            details: Additional technical details or suggestions.
+        """
+        self.message = message
+        self.details = details
+        super().__init__(message)
+
+
 class Gender(enum.StrEnum):
     """Enumeration of student gender options."""
 
@@ -123,12 +138,15 @@ class GradeList(pydantic.BaseModel):
 
         classes: dict[str, Classroom] = {}
 
+        # Handle both lowercase field names and capitalized aliases (from Excel)
+        teachers_data = info.data.get("teachers") or info.data.get("Teachers", [])
+        students_data = info.data.get("students") or info.data.get("Students", [])
+
         teacher_dict: dict[str, Teacher] = {
-            teacher.name: teacher for teacher in list(info.data["teachers"])
+            teacher.name: teacher for teacher in list(teachers_data)
         }
         student_dict: dict[str, Student] = {
-            f"{student.first_name}_{student.last_name}": student
-            for student in list(info.data["students"])
+            f"{student.first_name}_{student.last_name}": student for student in list(students_data)
         }
 
         for val in value:
@@ -208,17 +226,104 @@ class GradeList(pydantic.BaseModel):
             A GradeList object populated from the Excel data.
 
         Raises:
-            ValueError: If the Excel file has invalid data.
+            ExcelImportError: If the Excel file has invalid data or format.
         """
-        with pd.ExcelFile(filepath) as ef:
-            return cls.model_validate(
-                {sheet: cls._sheet_to_clean_records(ef, str(sheet)) for sheet in ef.sheet_names}
-            )
+        try:
+            with pd.ExcelFile(filepath) as ef:
+                # Check for required sheets
+                required_sheets = {"Teachers", "Students"}
+                available_sheets: set[str] = {str(s) for s in ef.sheet_names}
+                missing_sheets = required_sheets - available_sheets
+
+                print(available_sheets)
+
+                if missing_sheets:
+                    sheet_list = ", ".join(f'"{s}"' for s in sorted(missing_sheets))
+                    available_list = ", ".join(f'"{s}"' for s in sorted(available_sheets))
+                    raise ExcelImportError(
+                        f"Missing required sheet(s): {sheet_list}",
+                        f"The Excel file must contain 'Teachers' and 'Students' sheets. "
+                        f"Available sheets: {available_list}. "
+                        f"Please check that your file was exported correctly.",
+                    )
+
+                # Parse each sheet
+                data: dict[str, list[dict]] = {}
+                for sheet in ef.sheet_names:
+                    sheet_name = str(sheet)
+                    try:
+                        data[sheet_name] = cls._sheet_to_clean_records(ef, sheet_name)
+                    except Exception as e:
+                        raise ExcelImportError(
+                            f"Error reading '{sheet_name}' sheet",
+                            f"Could not parse the '{sheet_name}' sheet. "
+                            f"Make sure it contains valid table data with headers. "
+                            f"Technical error: {e}",
+                        ) from e
+
+                # Validate the data
+                try:
+                    return cls.model_validate(data)
+                except pydantic.ValidationError as e:
+                    # Build user-friendly error messages from validation errors
+                    errors = []
+                    for err in e.errors():
+                        loc = " -> ".join(str(x) for x in err["loc"])
+                        msg = err["msg"]
+                        errors.append(f"  • {loc}: {msg}")
+
+                    error_details = "\n".join(errors)
+                    raise ExcelImportError(
+                        "Data validation failed. Please check your Excel file format.",
+                        f"The following fields have errors:\n{error_details}\n\n"
+                        f"Common issues:\n"
+                        f"  • Make sure required columns are present: "
+                        f"Name (Teachers), First Name, Last Name, Gender, Math, ELA, "
+                        f"Behavior (Students)\n"
+                        f"  • Gender must be: Male, Female, M, or F\n"
+                        f"  • Math/ELA/Behavior must be: High, Medium, Low, H, M, or L\n"
+                        f"  • Cluster must be: AC, GEM, EL, or blank\n"
+                        f"  • Resource and Speech must be: TRUE/FALSE, Yes/No, or 1/0",
+                    ) from e
+
+        except pd.errors.EmptyDataError as e:
+            raise ExcelImportError(
+                "The Excel file is empty",
+                "The uploaded file contains no data. Please check the file and try again.",
+            ) from e
+        except pd.errors.ParserError as e:
+            raise ExcelImportError(
+                "Could not parse the Excel file",
+                f"The file appears to be corrupted or is not a valid Excel file. "
+                f"Technical error: {e}",
+            ) from e
+        except FileNotFoundError as e:
+            raise ExcelImportError(
+                "Excel file not found",
+                "The specified file could not be found. Please check the path.",
+            ) from e
+        except Exception as e:
+            # Re-raise ExcelImportError as-is
+            if isinstance(e, ExcelImportError):
+                raise
+            # Convert unexpected errors
+            raise ExcelImportError(
+                "Unexpected error loading Excel file",
+                f"An unexpected error occurred: {type(e).__name__}: {e}. "
+                f"Please check that your file is a valid Excel file (.xlsx).",
+            ) from e
 
     @staticmethod
     def _sheet_to_clean_records(file: pd.ExcelFile, sheet_name: str) -> list[dict]:
         df = file.parse(sheet_name=sheet_name)
-        return [row.dropna().to_dict() for _, row in df.iterrows()]
+        records = []
+        for _, row in df.iterrows():
+            # Drop NaN values and convert to dict
+            clean_row = row.dropna().to_dict()
+            # Skip empty rows (all values were NaN/blank)
+            if clean_row:
+                records.append(clean_row)
+        return records
 
 
 @dataclass

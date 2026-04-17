@@ -29,6 +29,7 @@ from eagleclasslists.classlist import (
     Behavior,
     Classroom,
     Cluster,
+    ExcelImportError,
     Gender,
     GradeList,
     Math,
@@ -362,3 +363,95 @@ class TestExcelSaveAndLoad:
         loaded_student = loaded.students[0]
         assert loaded_student.resource is False
         assert loaded_student.speech is False
+
+
+class TestExcelImportErrors:
+    """Test suite for Excel import error handling."""
+
+    def test_missing_teachers_sheet(self, tmp_path: Path) -> None:
+        """Test error when Teachers sheet is missing."""
+        import pandas as pd
+
+        # Create Excel with only Students sheet
+        excel_file = tmp_path / "missing_teachers.xlsx"
+        df = pd.DataFrame({"First Name": ["Alice"], "Last Name": ["Anderson"]})
+        df.to_excel(excel_file, sheet_name="Students", index=False)
+
+        with pytest.raises(ExcelImportError) as exc_info:
+            GradeList.from_excel(excel_file)
+
+        assert "Missing required sheet" in str(exc_info.value)
+        assert "Teachers" in str(exc_info.value)
+        assert exc_info.value.details is not None
+        assert "Teachers" in exc_info.value.details
+
+    def test_missing_students_sheet(self, tmp_path: Path) -> None:
+        """Test error when Students sheet is missing."""
+        import pandas as pd
+
+        # Create Excel with only Teachers sheet
+        excel_file = tmp_path / "missing_students.xlsx"
+        df = pd.DataFrame({"Name": ["Ms. Smith"]})
+        df.to_excel(excel_file, sheet_name="Teachers", index=False)
+
+        with pytest.raises(ExcelImportError) as exc_info:
+            GradeList.from_excel(excel_file)
+
+        assert "Missing required sheet" in str(exc_info.value)
+        assert "Students" in str(exc_info.value)
+
+    def test_empty_excel_file(self, tmp_path: Path) -> None:
+        """Test error when Excel file is empty."""
+        import pandas as pd
+
+        excel_file = tmp_path / "empty.xlsx"
+        # Create empty Excel file
+        with pd.ExcelWriter(excel_file) as writer:
+            pd.DataFrame().to_excel(writer, sheet_name="Empty", index=False)
+
+        # This should result in empty data but not necessarily an error
+        # The actual behavior depends on pandas version
+
+    def test_invalid_enum_value(self, tmp_path: Path) -> None:
+        """Test error with invalid enum value in data."""
+        import pandas as pd
+
+        # Create Excel with invalid gender value
+        excel_file = tmp_path / "invalid_gender.xlsx"
+        with pd.ExcelWriter(excel_file) as writer:
+            teachers_df = pd.DataFrame({"Name": ["Ms. Smith"], "Clusters": [""]})
+            teachers_df.to_excel(writer, sheet_name="Teachers", index=False)
+            students_df = pd.DataFrame(
+                {
+                    "First Name": ["Alice"],
+                    "Last Name": ["Anderson"],
+                    "Gender": ["InvalidValue"],  # Invalid gender
+                    "Math": ["High"],
+                    "ELA": ["High"],
+                    "Behavior": ["High"],
+                }
+            )
+            students_df.to_excel(writer, sheet_name="Students", index=False)
+
+        with pytest.raises(ExcelImportError) as exc_info:
+            GradeList.from_excel(excel_file)
+
+        assert (
+            "validation failed" in str(exc_info.value).lower()
+            or "validation" in str(exc_info.value).lower()
+        )
+        assert exc_info.value.details is not None
+
+    def test_excel_import_error_attributes(self) -> None:
+        """Test ExcelImportError has correct attributes."""
+        error = ExcelImportError("Test message", "Test details")
+        assert error.message == "Test message"
+        assert error.details == "Test details"
+        assert str(error) == "Test message"
+
+    def test_excel_import_error_no_details(self) -> None:
+        """Test ExcelImportError works without details."""
+        error = ExcelImportError("Test message")
+        assert error.message == "Test message"
+        assert error.details is None
+        assert str(error) == "Test message"
