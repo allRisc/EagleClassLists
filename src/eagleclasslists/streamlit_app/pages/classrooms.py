@@ -80,6 +80,242 @@ def _get_unassigned_students(
     return [s for s in grade_list.students if (s.first_name, s.last_name) not in assigned_students]
 
 
+def _calculate_classroom_stats(students: list[Student]) -> dict[str, dict[str, int]]:
+    """Calculate statistics for a classroom.
+
+    Args:
+        students: List of students in the classroom.
+
+    Returns:
+        Dictionary containing counts for each student type.
+    """
+    stats: dict[str, dict[str, int]] = {
+        "gender": {"Male": 0, "Female": 0},
+        "math": {"High": 0, "Medium": 0, "Low": 0},
+        "ela": {"High": 0, "Medium": 0, "Low": 0},
+        "behavior": {"High": 0, "Medium": 0, "Low": 0},
+        "services": {"Resource": 0, "Speech": 0, "Both": 0, "Neither": 0},
+        "clusters": {},
+    }
+
+    for student in students:
+        # Gender
+        if student.gender.value == "Male":
+            stats["gender"]["Male"] += 1
+        else:
+            stats["gender"]["Female"] += 1
+
+        # Math levels
+        stats["math"][student.math.value] += 1
+
+        # ELA levels
+        stats["ela"][student.ela.value] += 1
+
+        # Behavior levels
+        stats["behavior"][student.behavior.value] += 1
+
+        # Services - track all combinations
+        has_resource = student.resource
+        has_speech = student.speech
+        if has_resource and has_speech:
+            stats["services"]["Both"] += 1
+        elif has_resource:
+            stats["services"]["Resource"] += 1
+        elif has_speech:
+            stats["services"]["Speech"] += 1
+        else:
+            stats["services"]["Neither"] += 1
+
+        # Clusters
+        if student.cluster:
+            cluster_str = str(student.cluster)
+            if cluster_str not in stats["clusters"]:
+                stats["clusters"][cluster_str] = 0
+            stats["clusters"][cluster_str] += 1
+
+    return stats
+
+
+def _build_stacked_bar(
+    segments: list[tuple[str, int, str]],
+    total: int,
+    height: str = "28px",
+) -> str:
+    """Build HTML for a stacked bar with percentage overlays.
+
+    Args:
+        segments: List of (label, count, color) tuples.
+        total: Total count for percentage calculation.
+        height: Height of the bar.
+
+    Returns:
+        HTML string for the stacked bar.
+    """
+    if total == 0:
+        return (
+            "<table style='width:100%;border-collapse:collapse;'>"
+            "<tr><td style='background:#e5e7eb;text-align:center;padding:4px;"
+            "color:#9ca3af;font-size:12px;border-radius:4px;'>No students</td></tr>"
+            "</table>"
+        )
+
+    bar_segments = []
+    remaining_pct = 100.0
+
+    for idx, (label, count, color) in enumerate(segments):
+        if count == 0:
+            continue
+
+        # Calculate percentage
+        if idx == len(segments) - 1:
+            # Last segment takes remaining space to avoid rounding errors
+            pct = remaining_pct
+        else:
+            pct = count / total * 100
+            remaining_pct -= pct
+
+        pct_display = round(pct)
+        if pct_display < 1:
+            continue
+
+        segment_html = (
+            f"<td style='background:{color};text-align:center;padding:4px 2px;"
+            f"color:#1f2937;font-size:11px;font-weight:bold;white-space:nowrap;"
+            f"width:{pct_display}%'>"
+            f"{label}&nbsp;{pct_display}%</td>"
+        )
+        bar_segments.append(segment_html)
+
+    bar_html = (
+        f"<table style='width:100%;border-collapse:separate;border-spacing:2px;'>"
+        f"<tr style='height:{height};'>{''.join(bar_segments)}</tr>"
+        f"</table>"
+    )
+    return bar_html
+
+
+def _render_classroom_statistics(grade_list: GradeList) -> None:
+    """Render statistics for each classroom side-by-side for easy comparison."""
+    if not grade_list.classes:
+        st.info("No classrooms with assigned students yet.")
+        return
+
+    # Get all cluster types across all classrooms for consistent display
+    all_clusters: set[str] = set()
+    for cls in grade_list.classes:
+        stats = _calculate_classroom_stats(cls.students)
+        all_clusters.update(stats["clusters"].keys())
+
+    # Header row with teacher names
+    header_cols = st.columns(len(grade_list.classes))
+    for idx, cls in enumerate(grade_list.classes):
+        with header_cols[idx]:
+            total = len(cls.students)
+            st.markdown(f"**{cls.teacher.name}** ({total} students)")
+
+    st.divider()
+
+    # Gender row with stacked bar - muted pastel colors
+    st.write("**Gender**")
+    gender_cols = st.columns(len(grade_list.classes))
+    for idx, cls in enumerate(grade_list.classes):
+        with gender_cols[idx]:
+            stats = _calculate_classroom_stats(cls.students)
+            total = len(cls.students)
+            segments = [
+                ("Male", stats["gender"]["Male"], "#bfdbfe"),  # Muted pastel blue
+                ("Female", stats["gender"]["Female"], "#f9a8d4"),  # Muted pastel pink
+            ]
+            bar_html = _build_stacked_bar(segments, total)
+            st.markdown(bar_html, unsafe_allow_html=True)
+
+    # Math row with stacked bar - muted pastel colors
+    st.write("**Math**")
+    math_cols = st.columns(len(grade_list.classes))
+    for idx, cls in enumerate(grade_list.classes):
+        with math_cols[idx]:
+            stats = _calculate_classroom_stats(cls.students)
+            total = len(cls.students)
+            segments = [
+                ("High", stats["math"]["High"], "#bbf7d0"),  # Muted pastel green
+                ("Medium", stats["math"]["Medium"], "#fde68a"),  # Muted pastel yellow
+                ("Low", stats["math"]["Low"], "#fecaca"),  # Muted pastel red
+            ]
+            bar_html = _build_stacked_bar(segments, total)
+            st.markdown(bar_html, unsafe_allow_html=True)
+
+    # ELA row with stacked bar - muted pastel colors
+    st.write("**ELA**")
+    ela_cols = st.columns(len(grade_list.classes))
+    for idx, cls in enumerate(grade_list.classes):
+        with ela_cols[idx]:
+            stats = _calculate_classroom_stats(cls.students)
+            total = len(cls.students)
+            segments = [
+                ("High", stats["ela"]["High"], "#bbf7d0"),  # Muted pastel green
+                ("Medium", stats["ela"]["Medium"], "#fde68a"),  # Muted pastel yellow
+                ("Low", stats["ela"]["Low"], "#fecaca"),  # Muted pastel red
+            ]
+            bar_html = _build_stacked_bar(segments, total)
+            st.markdown(bar_html, unsafe_allow_html=True)
+
+    # Behavior row with stacked bar - muted pastel colors
+    st.write("**Behavior**")
+    behavior_cols = st.columns(len(grade_list.classes))
+    for idx, cls in enumerate(grade_list.classes):
+        with behavior_cols[idx]:
+            stats = _calculate_classroom_stats(cls.students)
+            total = len(cls.students)
+            segments = [
+                ("High", stats["behavior"]["High"], "#bbf7d0"),  # Muted pastel green
+                ("Medium", stats["behavior"]["Medium"], "#fde68a"),  # Muted pastel yellow
+                ("Low", stats["behavior"]["Low"], "#fecaca"),  # Muted pastel red
+            ]
+            bar_html = _build_stacked_bar(segments, total)
+            st.markdown(bar_html, unsafe_allow_html=True)
+
+    # Services section - always show to display full class breakdown
+    st.write("**Services**")
+    services_cols = st.columns(len(grade_list.classes))
+    for idx, cls in enumerate(grade_list.classes):
+        with services_cols[idx]:
+            stats = _calculate_classroom_stats(cls.students)
+            total = len(cls.students)
+            # Show all 4 service categories as % of total class
+            segments = [
+                ("None", stats["services"]["Neither"], "#e5e7eb"),  # Light gray
+                ("Resource", stats["services"]["Resource"], "#ddd6fe"),  # Muted pastel purple
+                ("Speech", stats["services"]["Speech"], "#a5f3fc"),  # Muted pastel cyan
+                ("Both", stats["services"]["Both"], "#c7d2fe"),  # Muted pastel indigo
+            ]
+            bar_html = _build_stacked_bar(segments, total)
+            st.markdown(bar_html, unsafe_allow_html=True)
+
+    # Clusters section (if any classroom has clusters) - muted pastel colors
+    if all_clusters:
+        st.write("**Clusters**")
+        cluster_colors = {
+            "AC": "#fed7aa",  # Muted pastel orange
+            "GEM": "#e9d5ff",  # Muted pastel purple
+            "EL": "#99f6e4",  # Muted pastel teal
+        }
+        clusters_cols = st.columns(len(grade_list.classes))
+        for idx, cls in enumerate(grade_list.classes):
+            with clusters_cols[idx]:
+                stats = _calculate_classroom_stats(cls.students)
+                total = len(cls.students)
+                segments = [
+                    (
+                        cluster,
+                        stats["clusters"].get(cluster, 0),
+                        cluster_colors.get(cluster, "#d1d5db"),
+                    )
+                    for cluster in sorted(all_clusters)
+                ]
+                bar_html = _build_stacked_bar(segments, total)
+                st.markdown(bar_html, unsafe_allow_html=True)
+
+
 def _remove_student_from_teacher(
     grade_list: GradeList, teacher_name: str, first_name: str, last_name: str
 ) -> None:
@@ -456,6 +692,13 @@ def render_classrooms_page() -> None:
         st.write(f"**Progress: {assigned_count}/{total_students} assigned**")
         progress_pct = assigned_count / total_students if total_students > 0 else 0
         st.progress(progress_pct)
+
+    # Classroom Statistics Section
+    st.divider()
+    st.subheader("📊 Classroom Statistics")
+    st.write("Breakdown of student types for each classroom.")
+
+    _render_classroom_statistics(grade_list)
 
     # Simulated Annealing Optimization Section
     st.divider()
