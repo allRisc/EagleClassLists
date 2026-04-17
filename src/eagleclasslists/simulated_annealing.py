@@ -74,6 +74,19 @@ class AnnealingConfig:
     random_seed: int | None = None
     """Optional seed for reproducible results."""
 
+    high_temp_threshold: float = 0.7
+    """Temperature ratio threshold for high-order neighbor generation.
+    Above this ratio (current_temp / initial_temp), 2nd and 3rd order
+    neighbors may be considered."""
+
+    second_order_probability: float = 0.3
+    """Probability of generating a 2nd order neighbor (two swaps)
+    when in high temperature phase."""
+
+    third_order_probability: float = 0.1
+    """Probability of generating a 3rd order neighbor (three swaps)
+    when in high temperature phase."""
+
 
 def optimize_grade_list(
     grade_list: GradeList,
@@ -117,6 +130,10 @@ def optimize_grade_list(
     temperature = config.initial_temperature
     iteration = 0
 
+    # Track consecutive zero-fitness iterations for revert logic
+    zero_fitness_streak = 0
+    max_zero_fitness_streak = max(1, int(config.max_iterations * 0.01))  # 1% of max iterations
+
     # Main annealing loop
     while temperature > config.min_temperature and iteration < config.max_iterations:
         # Perform multiple iterations at each temperature
@@ -126,13 +143,16 @@ def optimize_grade_list(
 
             iteration += 1
 
-            # Generate a neighbor solution that respects hard constraints
-            neighbor = _generate_neighbor(current_solution)
+            # Generate a neighbor solution with temperature-aware order selection
+            neighbor = _generate_neighbor(current_solution, temperature, config)
 
             if neighbor is None:
                 continue
 
-            # Calculate neighbor fitness
+            # Calculate neighbor fitness (validity is checked here)
+            # This supports deferred validity checking - temporary constraint
+            # violations during multi-swap sequences are allowed, but the
+            # final result must be valid to get a non-zero fitness score
             neighbor_fitness = calculate_fitness(neighbor, weights)
 
             # Decide whether to accept the neighbor
@@ -142,6 +162,7 @@ def optimize_grade_list(
                 # Better solution: always accept
                 current_solution = neighbor
                 current_fitness = neighbor_fitness
+                zero_fitness_streak = 0  # Reset streak on valid solution
 
                 # Update best if needed
                 if current_fitness > best_fitness:
@@ -149,10 +170,25 @@ def optimize_grade_list(
                     best_fitness = current_fitness
             else:
                 # Worse solution: accept with probability based on temperature
-                acceptance_probability = math.exp(delta / temperature)
-                if random.random() < acceptance_probability:
-                    current_solution = neighbor
-                    current_fitness = neighbor_fitness
+                # Skip accepting invalid solutions (fitness = 0) unless temperature
+                # is very high to allow temporary constraint violations
+                if neighbor_fitness > 0.0 or temperature > config.initial_temperature * 0.5:
+                    acceptance_probability = math.exp(delta / temperature)
+                    if random.random() < acceptance_probability:
+                        current_solution = neighbor
+                        current_fitness = neighbor_fitness
+
+                        # Track zero-fitness streak
+                        if current_fitness == 0.0:
+                            zero_fitness_streak += 1
+                        else:
+                            zero_fitness_streak = 0
+
+                        # Revert to best if stuck at zero fitness for too long
+                        if zero_fitness_streak >= max_zero_fitness_streak:
+                            current_solution = _copy_grade_list(best_solution)
+                            current_fitness = best_fitness
+                            zero_fitness_streak = 0
 
         # Cool down
         temperature *= config.cooling_rate
@@ -202,23 +238,48 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
     return GradeList(classes=new_classes, teachers=teachers, students=all_students)
 
 
-def _generate_neighbor(grade_list: GradeList) -> GradeList | None:
+def _generate_neighbor(
+    grade_list: GradeList, temperature: float, config: AnnealingConfig
+) -> GradeList | None:
     """Generate a neighbor solution by swapping students between classrooms.
 
-    This implementation respects hard constraints (cluster assignments,
-    teacher requests, and exclusions). It only generates moves that do not
-    violate these constraints.
+    This implementation supports temperature-based neighbor order selection.
+    At higher temperatures, 2nd and 3rd order neighbors (multiple sequential
+    swaps) may be generated to help escape local minima. Validity is checked
+    after all swaps are completed, allowing temporary constraint violations
+    during the swap sequence.
 
     Args:
         grade_list: The current GradeList.
+        temperature: Current temperature in the annealing process.
+        config: Annealing configuration for neighbor selection parameters.
 
     Returns:
-        A new GradeList with a single student swap, or None if no valid
+        A new GradeList with student swaps, or None if no valid
         neighbor could be generated.
     """
     if len(grade_list.classes) < 2:
         return None
 
+    # Calculate temperature ratio for order selection
+    temp_ratio = temperature / config.initial_temperature
+
+    # At high temperatures, consider higher-order neighbors
+    if temp_ratio > config.high_temp_threshold:
+        rand = random.random()
+        if rand < config.third_order_probability:
+            # Try 3rd order neighbor (three swaps)
+            neighbor = _generate_third_order_neighbor(grade_list)
+            if neighbor is not None:
+                return neighbor
+        elif rand < config.third_order_probability + config.second_order_probability:
+            # Try 2nd order neighbor (two swaps)
+            neighbor = _generate_second_order_neighbor(grade_list)
+            if neighbor is not None:
+                return neighbor
+        # Fall through to 1st order if higher-order generation fails
+
+    # Generate 1st order neighbor (single swap or move)
     # Try to find a valid swap between two classrooms
     swap_result = _generate_swap_neighbor(grade_list)
     if swap_result is not None:
@@ -226,6 +287,194 @@ def _generate_neighbor(grade_list: GradeList) -> GradeList | None:
 
     # If no valid swap found, try moving a single student
     return _generate_move_neighbor(grade_list)
+
+
+def _generate_second_order_neighbor(grade_list: GradeList) -> GradeList | None:
+    """Generate a 2nd order neighbor by performing two sequential swaps.
+
+    This allows temporary constraint violations during the swap sequence,
+    which can help escape local minima. Only the final result needs to be
+    valid (checked by fitness function after generation).
+
+    Args:
+        grade_list: The current GradeList.
+
+    Returns:
+        A new GradeList with two swaps applied, or None if generation fails.
+    """
+    # First swap - use relaxed validation (allows temporary violations)
+    temp_result = _generate_relaxed_swap(grade_list)
+    if temp_result is None:
+        return None
+
+    # Second swap - again with relaxed validation
+    final_result = _generate_relaxed_swap(temp_result)
+    if final_result is None:
+        return None
+
+    return final_result
+
+
+def _generate_third_order_neighbor(grade_list: GradeList) -> GradeList | None:
+    """Generate a 3rd order neighbor by performing three sequential swaps.
+
+    This allows temporary constraint violations during the swap sequence,
+    which can help escape local minima. Only the final result needs to be
+    valid (checked by fitness function after generation).
+
+    Args:
+        grade_list: The current GradeList.
+
+    Returns:
+        A new GradeList with three swaps applied, or None if generation fails.
+    """
+    # First swap
+    temp_result = _generate_relaxed_swap(grade_list)
+    if temp_result is None:
+        return None
+
+    # Second swap
+    temp_result2 = _generate_relaxed_swap(temp_result)
+    if temp_result2 is None:
+        return None
+
+    # Third swap
+    final_result = _generate_relaxed_swap(temp_result2)
+    if final_result is None:
+        return None
+
+    return final_result
+
+
+def _generate_relaxed_swap(grade_list: GradeList) -> GradeList | None:
+    """Generate a swap neighbor with relaxed constraint checking.
+
+    Unlike the standard _generate_swap_neighbor, this function only excludes
+    students with teacher requests (hard constraint that must never be violated).
+    Cluster and exclusion constraints are relaxed, allowing temporary violations
+    that may be resolved in subsequent swaps.
+
+    Args:
+        grade_list: The current GradeList.
+
+    Returns:
+        A new GradeList with a swap applied, or None if generation fails.
+    """
+    num_classes = len(grade_list.classes)
+
+    # Try multiple random classroom pairs
+    for _ in range(min(50, num_classes * (num_classes - 1) // 2)):
+        # Select two different classrooms randomly
+        idx1, idx2 = random.sample(range(num_classes), 2)
+
+        classroom1 = grade_list.classes[idx1]
+        classroom2 = grade_list.classes[idx2]
+
+        if not classroom1.students or not classroom2.students:
+            continue
+
+        # Get students without teacher requests (these cannot be moved)
+        students1_with_indices = [
+            (i, s) for i, s in enumerate(classroom1.students) if not _has_teacher_request(s)
+        ]
+        students2_with_indices = [
+            (i, s) for i, s in enumerate(classroom2.students) if not _has_teacher_request(s)
+        ]
+
+        if not students1_with_indices or not students2_with_indices:
+            continue
+
+        # Shuffle to try random combinations
+        random.shuffle(students1_with_indices)
+        random.shuffle(students2_with_indices)
+
+        # Try combinations with relaxed validation
+        for s1_idx, student1 in students1_with_indices:
+            for s2_idx, student2 in students2_with_indices:
+                # Only check teacher requests - relax cluster and exclusion constraints
+                # This allows temporary violations that may be resolved later
+                if _is_relaxed_swap_valid(classroom1, classroom2, student1, student2):
+                    return _create_swap_neighbor(grade_list, idx1, s1_idx, idx2, s2_idx)
+
+    # If no relaxed swap found, try a relaxed move
+    return _generate_relaxed_move(grade_list)
+
+
+def _is_relaxed_swap_valid(
+    classroom1: Classroom, classroom2: Classroom, student1: Student, student2: Student
+) -> bool:
+    """Check if a swap is valid under relaxed constraints.
+
+    Only teacher requests are strictly enforced. Cluster and exclusion
+    constraints are relaxed to allow temporary violations.
+
+    Args:
+        classroom1: First classroom.
+        classroom2: Second classroom.
+        student1: Student from classroom1 to swap.
+        student2: Student from classroom2 to swap.
+
+    Returns:
+        True if the swap passes relaxed validation, False otherwise.
+    """
+    # Get teacher names
+    teacher1_name = classroom1.teacher.name
+    teacher2_name = classroom2.teacher.name
+
+    # Teacher requests are always hard constraints
+    if _has_teacher_request(student1) and student1.teacher != teacher2_name:
+        return False
+
+    if _has_teacher_request(student2) and student2.teacher != teacher1_name:
+        return False
+
+    # Cluster and exclusion constraints are relaxed - allow temporary violations
+    return True
+
+
+def _generate_relaxed_move(grade_list: GradeList) -> GradeList | None:
+    """Generate a move neighbor with relaxed constraint checking.
+
+    Only teacher requests are strictly enforced. Cluster and exclusion
+    constraints are relaxed to allow temporary violations.
+
+    Args:
+        grade_list: The current GradeList.
+
+    Returns:
+        A new GradeList with a move applied, or None if generation fails.
+    """
+    if len(grade_list.classes) < 2:
+        return None
+
+    num_classes = len(grade_list.classes)
+
+    # Build list of possible moves (only respecting teacher requests)
+    valid_moves: list[tuple[int, int, int]] = []  # (source_idx, student_idx, target_idx)
+
+    for source_idx in range(num_classes):
+        source_class = grade_list.classes[source_idx]
+
+        if not source_class.students:
+            continue
+
+        for student_idx, student in enumerate(source_class.students):
+            # Only skip students with teacher requests
+            if _has_teacher_request(student):
+                continue
+
+            for target_idx in range(num_classes):
+                if source_idx == target_idx:
+                    continue
+
+                valid_moves.append((source_idx, student_idx, target_idx))
+
+    if valid_moves:
+        # Pick a random valid move
+        source_idx, student_idx, target_idx = random.choice(valid_moves)
+        return _create_move_neighbor(grade_list, source_idx, student_idx, target_idx)
+
+    return None
 
 
 def _has_teacher_request(student: Student) -> bool:
