@@ -21,12 +21,13 @@
 from __future__ import annotations
 
 from eagleclasslists.classlist import (
-    Academics,
+    ELA,
     Behavior,
     Classroom,
     Cluster,
     Gender,
     GradeList,
+    Math,
     Student,
     Teacher,
 )
@@ -44,7 +45,8 @@ class TestFitnessWeights:
         """Test that default weights are set correctly."""
         weights = FitnessWeights()
         assert weights.gender == 1.0
-        assert weights.academics == 1.0
+        assert weights.math == 0.5
+        assert weights.ela == 0.5
         assert weights.behavior == 1.0
         assert weights.resource == 0.5
         assert weights.speech == 0.5
@@ -52,9 +54,12 @@ class TestFitnessWeights:
 
     def test_custom_weights(self) -> None:
         """Test that custom weights can be set."""
-        weights = FitnessWeights(gender=2.0, academics=1.5, behavior=1.5, resource=1.0, speech=1.0)
+        weights = FitnessWeights(
+            gender=2.0, math=0.75, ela=0.75, behavior=1.5, resource=1.0, speech=1.0
+        )
         assert weights.gender == 2.0
-        assert weights.academics == 1.5
+        assert weights.math == 0.75
+        assert weights.ela == 0.75
         assert weights.behavior == 1.5
         assert weights.resource == 1.0
         assert weights.speech == 1.0
@@ -62,7 +67,7 @@ class TestFitnessWeights:
     def test_total_weight(self) -> None:
         """Test total weight calculation."""
         weights = FitnessWeights()
-        expected = 1.0 + 1.0 + 1.0 + 0.5 + 0.5 + 1.0
+        expected = 1.0 + 0.5 + 0.5 + 1.0 + 0.5 + 0.5 + 1.0
         assert weights.total_weight() == expected
 
 
@@ -76,7 +81,8 @@ class TestClusterScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -93,7 +99,8 @@ class TestClusterScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -112,7 +119,8 @@ class TestClusterScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -120,7 +128,8 @@ class TestClusterScore:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
             cluster=Cluster.GEM,
         )
@@ -145,7 +154,8 @@ class TestClusterScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=None,
         )
@@ -170,14 +180,16 @@ class TestGenderBalance:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             ),
             Student(
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             ),
         ]
@@ -186,14 +198,16 @@ class TestGenderBalance:
                 first_name="Carol",
                 last_name="Clark",
                 gender=Gender.FEMALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             ),
             Student(
                 first_name="David",
                 last_name="Davis",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             ),
         ]
@@ -221,7 +235,8 @@ class TestGenderBalance:
                 first_name=f"Girl{i}",
                 last_name=f"Name{i}",
                 gender=Gender.FEMALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(5)
@@ -231,7 +246,8 @@ class TestGenderBalance:
                 first_name=f"Boy{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(5)
@@ -263,7 +279,8 @@ class TestClassSizeBalance:
                 first_name=f"Student{i}",
                 last_name="Smith",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(10)
@@ -273,7 +290,8 @@ class TestClassSizeBalance:
                 first_name=f"Student{i}",
                 last_name="Jones",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(10)
@@ -301,7 +319,8 @@ class TestClassSizeBalance:
                 first_name=f"Student{i}",
                 last_name="Smith",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(20)
@@ -311,7 +330,8 @@ class TestClassSizeBalance:
                 first_name=f"Student{i}",
                 last_name="Jones",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(5)
@@ -345,7 +365,8 @@ class TestResourceAndSpeechBalance:
                 first_name=f"Student{i}",
                 last_name="Smith",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
                 resource=(i < 2),  # First 2 have resource
             )
@@ -356,7 +377,8 @@ class TestResourceAndSpeechBalance:
                 first_name=f"Student{i}",
                 last_name="Jones",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
                 resource=(i < 2),  # First 2 have resource
             )
@@ -386,7 +408,8 @@ class TestResourceAndSpeechBalance:
                 first_name=f"Student{i}",
                 last_name="Smith",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
                 speech=True,
             )
@@ -397,7 +420,8 @@ class TestResourceAndSpeechBalance:
                 first_name=f"Student{i}",
                 last_name="Jones",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
                 speech=False,
             )
@@ -427,7 +451,8 @@ class TestOverallFitness:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student])
@@ -452,7 +477,8 @@ class TestOverallFitness:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -461,7 +487,8 @@ class TestOverallFitness:
                 first_name=f"Student{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
             )
             for i in range(6)
@@ -482,7 +509,7 @@ class TestOverallFitness:
         default_fitness = calculate_fitness(grade_list)
 
         # With gender prioritized (should give different score if gender is imbalanced)
-        gender_weights = FitnessWeights(gender=5.0, academics=0.1, behavior=0.1)
+        gender_weights = FitnessWeights(gender=5.0, math=0.05, ela=0.05, behavior=0.1)
         gender_fitness = calculate_fitness(grade_list, gender_weights)
 
         # Scores should be different with different weight emphasis
@@ -499,7 +526,8 @@ class TestFitnessBreakdown:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student])
@@ -510,7 +538,8 @@ class TestFitnessBreakdown:
         expected_keys = [
             "cluster",
             "gender",
-            "academics",
+            "math",
+            "ela",
             "behavior",
             "resource",
             "speech",

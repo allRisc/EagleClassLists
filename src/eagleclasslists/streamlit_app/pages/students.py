@@ -25,11 +25,12 @@ from collections.abc import Sequence
 import streamlit as st
 
 from eagleclasslists.classlist import (
-    Academics,
+    ELA,
     Behavior,
     Cluster,
     Gender,
     GradeList,
+    Math,
     Student,
 )
 
@@ -72,11 +73,17 @@ def render_students_page() -> None:
                     format_func=lambda x: x.value,
                     key="new_student_gender",
                 )
-                academics = st.selectbox(
-                    "Academics",
-                    options=list(Academics),
+                math = st.selectbox(
+                    "Math",
+                    options=list(Math),
                     format_func=lambda x: x.value,
-                    key="new_student_academics",
+                    key="new_student_math",
+                )
+                ela = st.selectbox(
+                    "ELA",
+                    options=list(ELA),
+                    format_func=lambda x: x.value,
+                    key="new_student_ela",
                 )
                 cluster = st.selectbox(
                     "Cluster (optional)",
@@ -112,7 +119,8 @@ def render_students_page() -> None:
                             first_name=first_name.strip(),
                             last_name=last_name.strip(),
                             gender=gender,
-                            academics=academics,
+                            math=math,
+                            ela=ela,
                             behavior=behavior,
                             cluster=cluster if cluster else None,
                             resource=resource,
@@ -137,7 +145,8 @@ def render_students_page() -> None:
             with col2:
                 attrs = [
                     student.gender.value,
-                    f"📚 {student.academics.value}",
+                    f"🔢 {student.math.value}",
+                    f"📚 {student.ela.value}",
                     f"😊 {student.behavior.value}",
                 ]
                 if student.cluster:
@@ -176,12 +185,19 @@ def render_students_page() -> None:
                             format_func=lambda x: x.value,
                             key=f"edit_gender_{idx}",
                         )
-                        new_academics = st.selectbox(
-                            "Academics",
-                            options=list(Academics),
-                            index=list(Academics).index(student.academics),
+                        new_math = st.selectbox(
+                            "Math",
+                            options=list(Math),
+                            index=list(Math).index(student.math),
                             format_func=lambda x: x.value,
-                            key=f"edit_academics_{idx}",
+                            key=f"edit_math_{idx}",
+                        )
+                        new_ela = st.selectbox(
+                            "ELA",
+                            options=list(ELA),
+                            index=list(ELA).index(student.ela),
+                            format_func=lambda x: x.value,
+                            key=f"edit_ela_{idx}",
                         )
                         cluster_options: Sequence[Cluster | None] = [None, *list(Cluster)]
                         new_cluster = st.selectbox(
@@ -225,7 +241,8 @@ def render_students_page() -> None:
                             student.first_name = new_first.strip()
                             student.last_name = new_last.strip()
                             student.gender = new_gender
-                            student.academics = new_academics
+                            student.math = new_math
+                            student.ela = new_ela
                             student.behavior = new_behavior
                             student.cluster = new_cluster if new_cluster else None
                             student.resource = new_resource

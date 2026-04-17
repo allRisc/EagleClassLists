@@ -25,12 +25,13 @@ from pathlib import Path
 import pytest
 
 from eagleclasslists.classlist import (
-    Academics,
+    ELA,
     Behavior,
     Classroom,
     Cluster,
     Gender,
     GradeList,
+    Math,
     Student,
     Teacher,
 )
@@ -49,7 +50,8 @@ class TestExcelSaveAndLoad:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
             resource=True,
@@ -60,7 +62,8 @@ class TestExcelSaveAndLoad:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
             cluster=None,
             resource=False,
@@ -71,7 +74,8 @@ class TestExcelSaveAndLoad:
             first_name="Charlie",
             last_name="Clark",
             gender=Gender.MALE,
-            academics=Academics.LOW,
+            math=Math.LOW,
+            ela=ELA.LOW,
             behavior=Behavior.LOW,
             cluster=Cluster.EL,
             resource=True,
@@ -130,7 +134,8 @@ class TestExcelSaveAndLoad:
             s for s in loaded.students if s.first_name == "Alice" and s.last_name == "Anderson"
         )
         assert alice.gender == Gender.FEMALE
-        assert alice.academics == Academics.HIGH
+        assert alice.math == Math.HIGH
+        assert alice.ela == ELA.HIGH
         assert alice.behavior == Behavior.HIGH
         assert alice.cluster == Cluster.GEM
         assert alice.resource is True
@@ -168,7 +173,8 @@ class TestExcelSaveAndLoad:
             first_name="Solo",
             last_name="Student",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
         )
         classroom = Classroom(teacher=teacher, students=[student])
@@ -191,7 +197,8 @@ class TestExcelSaveAndLoad:
             first_name="No",
             last_name="Cluster",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=None,
         )
@@ -212,7 +219,8 @@ class TestExcelSaveAndLoad:
             first_name="Test",
             last_name="Student",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
         )
         classroom = Classroom(teacher=teacher, students=[student])
@@ -233,7 +241,8 @@ class TestExcelSaveAndLoad:
             first_name="Test",
             last_name="Student",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
         )
         classroom = Classroom(teacher=teacher, students=[student])
@@ -253,7 +262,8 @@ class TestExcelSaveAndLoad:
             first_name="José",
             last_name="García-Muñoz",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
         )
         classroom = Classroom(teacher=teacher, students=[student])
@@ -273,16 +283,18 @@ class TestExcelSaveAndLoad:
 
         students = []
         for gender in Gender:
-            for academics in Academics:
-                for behavior in Behavior:
-                    student = Student(
-                        first_name=f"{gender.value}",
-                        last_name=f"{academics.value}_{behavior.value}",
-                        gender=gender,
-                        academics=academics,
-                        behavior=behavior,
-                    )
-                    students.append(student)
+            for math in Math:
+                for ela in ELA:
+                    for behavior in Behavior:
+                        student = Student(
+                            first_name=f"{gender.value}",
+                            last_name=f"{math.value}_{ela.value}_{behavior.value}",
+                            gender=gender,
+                            math=math,
+                            ela=ela,
+                            behavior=behavior,
+                        )
+                        students.append(student)
 
         classroom = Classroom(teacher=teacher, students=students)
         grade_list = GradeList(classes=[classroom], teachers=[teacher], students=students)
@@ -293,12 +305,14 @@ class TestExcelSaveAndLoad:
 
         for student in loaded.students:
             expected_gender = Gender(student.first_name)
-            academics_str, behavior_str = student.last_name.split("_")
-            expected_academics = Academics(academics_str)
+            math_str, ela_str, behavior_str = student.last_name.split("_")
+            expected_math = Math(math_str)
+            expected_ela = ELA(ela_str)
             expected_behavior = Behavior(behavior_str)
 
             assert student.gender == expected_gender
-            assert student.academics == expected_academics
+            assert student.math == expected_math
+            assert student.ela == expected_ela
             assert student.behavior == expected_behavior
 
     def test_boolean_fields_true(self, tmp_path: Path) -> None:
@@ -308,7 +322,8 @@ class TestExcelSaveAndLoad:
             first_name="Both",
             last_name="Name",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
             resource=True,
             speech=True,
@@ -331,7 +346,8 @@ class TestExcelSaveAndLoad:
             first_name="Both",
             last_name="Name",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
             resource=False,
             speech=False,

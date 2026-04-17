@@ -1,11 +1,12 @@
 """Example usage of the fitness and simulated annealing modules."""
 
 from eagleclasslists.classlist import (
-    Academics,
+    ELA,
     Behavior,
     Classroom,
     Gender,
     GradeList,
+    Math,
     Student,
     Teacher,
 )
@@ -22,7 +23,8 @@ male_students = [
         first_name=f"Boy{i}",
         last_name=f"Name{i}",
         gender=Gender.MALE,
-        academics=Academics.MEDIUM,
+        math=Math.MEDIUM,
+        ela=ELA.MEDIUM,
         behavior=Behavior.MEDIUM,
     )
     for i in range(8)
@@ -32,7 +34,8 @@ female_students = [
         first_name=f"Girl{i}",
         last_name=f"Name{i}",
         gender=Gender.FEMALE,
-        academics=Academics.MEDIUM,
+        math=Math.MEDIUM,
+        ela=ELA.MEDIUM,
         behavior=Behavior.MEDIUM,
     )
     for i in range(8)

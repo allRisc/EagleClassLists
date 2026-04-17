@@ -6,6 +6,19 @@ All notable changes to ``EagleClassLists`` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+0.4.0
+----------------------------------------------------------------------
+
+### Changed
+- **BREAKING**: Split ``Academics`` enum into separate ``Math`` and ``ELA`` enums
+  - Replaced single ``academics`` field on ``Student`` with ``math`` and ``ela`` fields
+  - Updated ``FitnessWeights`` to use separate ``math`` (0.5) and ``ela`` (0.5) weights
+    instead of single ``academics`` (1.0) weight
+  - Math and ELA contribute equally to fitness (combined weight of 1.0)
+  - Updated fitness breakdown to show ``math`` and ``ela`` scores separately
+  - Updated all test files, examples, and Streamlit UI to use new fields
+  - Excel import/export now expects "Math" and "ELA" columns instead of "Academics"
+
 0.3.0
 ----------------------------------------------------------------------
 

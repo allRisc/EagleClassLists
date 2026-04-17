@@ -19,7 +19,7 @@
 """Fitness module for computing the fairness score of a GradeList.
 
 This module provides functions to evaluate how well-balanced a grade list is,
-considering cluster assignments, gender distribution, academics, behavior,
+considering cluster assignments, gender distribution, math, ela, behavior,
 and special services (resource, speech). The fitness score ranges from 0 to 1,
 where 1 represents a perfectly balanced distribution.
 """
@@ -52,8 +52,11 @@ class FitnessWeights:
     gender: float = 1.0
     """Weight for gender balance across classrooms."""
 
-    academics: float = 1.0
-    """Weight for academic performance balance."""
+    math: float = 0.5
+    """Weight for math performance balance."""
+
+    ela: float = 0.5
+    """Weight for ELA performance balance."""
 
     behavior: float = 1.0
     """Weight for behavior rating balance."""
@@ -75,7 +78,8 @@ class FitnessWeights:
         """
         return (
             self.gender
-            + self.academics
+            + self.math
+            + self.ela
             + self.behavior
             + self.resource
             + self.speech
@@ -114,7 +118,8 @@ def calculate_fitness(grade_list: GradeList, weights: FitnessWeights | None = No
 
     # Calculate other component scores
     gender_score = _calculate_gender_balance(grade_list)
-    academics_score = _calculate_academics_balance(grade_list)
+    math_score = _calculate_math_balance(grade_list)
+    ela_score = _calculate_ela_balance(grade_list)
     behavior_score = _calculate_behavior_balance(grade_list)
     resource_score = _calculate_resource_balance(grade_list)
     speech_score = _calculate_speech_balance(grade_list)
@@ -127,7 +132,8 @@ def calculate_fitness(grade_list: GradeList, weights: FitnessWeights | None = No
 
     weighted_score = (
         weights.gender * gender_score
-        + weights.academics * academics_score
+        + weights.math * math_score
+        + weights.ela * ela_score
         + weights.behavior * behavior_score
         + weights.resource * resource_score
         + weights.speech * speech_score
@@ -185,10 +191,10 @@ def _calculate_gender_balance(grade_list: GradeList) -> float:
     return _calculate_enum_balance(grade_list, lambda s: s.gender, [Gender.MALE, Gender.FEMALE])
 
 
-def _calculate_academics_balance(grade_list: GradeList) -> float:
-    """Calculate academic performance distribution balance score.
+def _calculate_math_balance(grade_list: GradeList) -> float:
+    """Calculate math performance distribution balance score.
 
-    Measures how evenly academic performance levels are distributed
+    Measures how evenly math performance levels are distributed
     across classrooms.
 
     Args:
@@ -197,12 +203,33 @@ def _calculate_academics_balance(grade_list: GradeList) -> float:
     Returns:
         A score between 0 and 1, where 1 means perfect balance.
     """
-    from eagleclasslists.classlist import Academics
+    from eagleclasslists.classlist import Math
 
     return _calculate_enum_balance(
         grade_list,
-        lambda s: s.academics,
-        [Academics.HIGH, Academics.MEDIUM, Academics.LOW],
+        lambda s: s.math,
+        [Math.HIGH, Math.MEDIUM, Math.LOW],
+    )
+
+
+def _calculate_ela_balance(grade_list: GradeList) -> float:
+    """Calculate ELA performance distribution balance score.
+
+    Measures how evenly ELA performance levels are distributed
+    across classrooms.
+
+    Args:
+        grade_list: The GradeList to evaluate.
+
+    Returns:
+        A score between 0 and 1, where 1 means perfect balance.
+    """
+    from eagleclasslists.classlist import ELA
+
+    return _calculate_enum_balance(
+        grade_list,
+        lambda s: s.ela,
+        [ELA.HIGH, ELA.MEDIUM, ELA.LOW],
     )
 
 
@@ -424,7 +451,8 @@ def get_fitness_breakdown(
     return {
         "cluster": _calculate_cluster_score(grade_list),
         "gender": _calculate_gender_balance(grade_list),
-        "academics": _calculate_academics_balance(grade_list),
+        "math": _calculate_math_balance(grade_list),
+        "ela": _calculate_ela_balance(grade_list),
         "behavior": _calculate_behavior_balance(grade_list),
         "resource": _calculate_resource_balance(grade_list),
         "speech": _calculate_speech_balance(grade_list),

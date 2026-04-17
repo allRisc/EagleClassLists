@@ -21,12 +21,13 @@
 from __future__ import annotations
 
 from eagleclasslists.classlist import (
-    Academics,
+    ELA,
     Behavior,
     Classroom,
     Cluster,
     Gender,
     GradeList,
+    Math,
     Student,
     Teacher,
 )
@@ -81,7 +82,8 @@ class TestCopyGradeList:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -103,7 +105,8 @@ class TestCopyGradeList:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student])
@@ -130,7 +133,8 @@ class TestSwapValidation:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -138,7 +142,8 @@ class TestSwapValidation:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
             cluster=Cluster.GEM,
         )
@@ -157,7 +162,8 @@ class TestSwapValidation:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -165,7 +171,8 @@ class TestSwapValidation:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
             cluster=None,
         )
@@ -185,7 +192,8 @@ class TestSwapValidation:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=None,
         )
@@ -193,7 +201,8 @@ class TestSwapValidation:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            academics=Academics.MEDIUM,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
             behavior=Behavior.MEDIUM,
             cluster=None,
         )
@@ -221,7 +230,8 @@ class TestSmartNeighborGeneration:
                 first_name="GEM1",
                 last_name="Student",
                 gender=Gender.FEMALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
                 cluster=Cluster.GEM,
             ),
@@ -229,7 +239,8 @@ class TestSmartNeighborGeneration:
                 first_name="GEM2",
                 last_name="Student",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
                 cluster=Cluster.GEM,
             ),
@@ -237,7 +248,8 @@ class TestSmartNeighborGeneration:
                 first_name="Regular1",
                 last_name="Student",
                 gender=Gender.FEMALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
                 cluster=None,
             ),
@@ -245,7 +257,8 @@ class TestSmartNeighborGeneration:
                 first_name="Regular2",
                 last_name="Student",
                 gender=Gender.MALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
                 cluster=None,
             ),
@@ -287,7 +300,8 @@ class TestSmartNeighborGeneration:
                 first_name="GEM1",
                 last_name="Student",
                 gender=Gender.FEMALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
                 cluster=Cluster.GEM,
             ),
@@ -295,7 +309,8 @@ class TestSmartNeighborGeneration:
                 first_name="Regular1",
                 last_name="Student",
                 gender=Gender.FEMALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
                 cluster=None,
             ),
@@ -303,7 +318,8 @@ class TestSmartNeighborGeneration:
                 first_name="Regular2",
                 last_name="Student",
                 gender=Gender.MALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
                 cluster=None,
             ),
@@ -343,7 +359,8 @@ class TestSmartNeighborGeneration:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -352,7 +369,8 @@ class TestSmartNeighborGeneration:
                 first_name=f"Student{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
             )
             for i in range(6)
@@ -374,7 +392,7 @@ class TestSmartNeighborGeneration:
 
         # Optimize - cluster constraint is automatically enforced (hard constraint)
         # Any valid solution must have cluster_score = 1.0
-        weights = FitnessWeights(gender=0.0, academics=0.0, behavior=0.0)
+        weights = FitnessWeights(gender=0.0, math=0.0, ela=0.0, behavior=0.0)
         config = AnnealingConfig(
             initial_temperature=10.0,
             cooling_rate=0.95,
@@ -417,7 +435,8 @@ class TestOptimizeGradeList:
                 first_name=f"Boy{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(10)
@@ -427,7 +446,8 @@ class TestOptimizeGradeList:
                 first_name=f"Girl{i}",
                 last_name=f"Name{i}",
                 gender=Gender.FEMALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(10)
@@ -469,7 +489,8 @@ class TestOptimizeGradeList:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            academics=Academics.HIGH,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -478,7 +499,8 @@ class TestOptimizeGradeList:
                 first_name=f"Student{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
             )
             for i in range(10)
@@ -528,7 +550,8 @@ class TestOptimizeGradeList:
                 first_name=f"Student{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
             )
             for i in range(20)
@@ -569,7 +592,8 @@ class TestOptimizeGradeList:
                 first_name=f"Student{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
-                academics=Academics.MEDIUM,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
                 behavior=Behavior.MEDIUM,
             )
             for i in range(10)
@@ -617,7 +641,8 @@ class TestOptimizeGradeList:
                 first_name=f"Student{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(5)
@@ -656,7 +681,8 @@ class TestOptimizeMultipleTimes:
                 first_name=f"Boy{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(8)
@@ -666,7 +692,8 @@ class TestOptimizeMultipleTimes:
                 first_name=f"Girl{i}",
                 last_name=f"Name{i}",
                 gender=Gender.FEMALE,
-                academics=Academics.HIGH,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(8)

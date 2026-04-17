@@ -45,17 +45,30 @@ class Gender(enum.StrEnum):
     """Female gender."""
 
 
-class Academics(enum.StrEnum):
-    """Enumeration of academic performance levels."""
+class Math(enum.StrEnum):
+    """Enumeration of math performance levels."""
 
     HIGH = "High"
-    """High academic performance."""
+    """High math performance."""
 
     MEDIUM = "Medium"
-    """Medium academic performance."""
+    """Medium math performance."""
 
     LOW = "Low"
-    """Low academic performance."""
+    """Low math performance."""
+
+
+class ELA(enum.StrEnum):
+    """Enumeration of ELA (English Language Arts) performance levels."""
+
+    HIGH = "High"
+    """High ELA performance."""
+
+    MEDIUM = "Medium"
+    """Medium ELA performance."""
+
+    LOW = "Low"
+    """Low ELA performance."""
 
 
 class Behavior(enum.StrEnum):
@@ -124,7 +137,7 @@ class GradeList(pydantic.BaseModel):
                 continue
 
             teacher_name = val["Teacher Name"]
-            student_name = f'{val["Student First Name"]}_{val["Student Last Name"]}'
+            student_name = f"{val['Student First Name']}_{val['Student Last Name']}"
 
             if teacher_name not in teacher_dict:
                 raise ValueError(f"Teacher ({teacher_name}) specified in classroom not found")
@@ -148,11 +161,13 @@ class GradeList(pydantic.BaseModel):
         serial_classes: list[dict[str, str]] = []
         for classroom in value:
             for student in classroom.students:
-                serial_classes.append({
-                    "Teacher Name": classroom.teacher.name,
-                    "Student First Name": student.first_name,
-                    "Student Last Name": student.last_name,
-                })
+                serial_classes.append(
+                    {
+                        "Teacher Name": classroom.teacher.name,
+                        "Student First Name": student.first_name,
+                        "Student Last Name": student.last_name,
+                    }
+                )
         return serial_classes
 
     def save_to_excel(self, filepath: str | Path | BinaryIO) -> None:
@@ -256,8 +271,11 @@ class Student(pydantic.BaseModel):
     gender: Gender = pydantic.Field(alias="Gender")
     """The student's gender (Gender enum)."""
 
-    academics: Academics = pydantic.Field(alias="Academics")
-    """The student's academic performance level (Academics enum)."""
+    math: Math = pydantic.Field(alias="Math")
+    """The student's math performance level (Math enum)."""
+
+    ela: ELA = pydantic.Field(alias="ELA")
+    """The student's ELA performance level (ELA enum)."""
 
     behavior: Behavior = pydantic.Field(alias="Behavior")
     """The student's behavior rating (Behavior enum)."""
