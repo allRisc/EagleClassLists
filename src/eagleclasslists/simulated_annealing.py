@@ -84,7 +84,7 @@ def optimize_grade_list(
     """Optimize a GradeList using simulated annealing.
 
     Finds a better assignment of students to classrooms by maximizing
-    the fitness score while respecting cluster constraints.
+    the fitness score while respecting cluster and teacher request constraints.
 
     Args:
         grade_list: The GradeList to optimize.
@@ -126,7 +126,7 @@ def optimize_grade_list(
 
             iteration += 1
 
-            # Generate a neighbor solution
+            # Generate a neighbor solution that respects hard constraints
             neighbor = _generate_neighbor(current_solution)
 
             if neighbor is None:
@@ -205,9 +205,9 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
 def _generate_neighbor(grade_list: GradeList) -> GradeList | None:
     """Generate a neighbor solution by swapping students between classrooms.
 
-    This implementation is "smart" about cluster constraints - it actively
-    seeks valid moves that don't violate cluster assignments, trying multiple
-    combinations before falling back to single moves.
+    This implementation respects hard constraints (cluster assignments and
+    teacher requests). It only generates moves that do not violate these
+    constraints.
 
     Args:
         grade_list: The current GradeList.
@@ -228,11 +228,38 @@ def _generate_neighbor(grade_list: GradeList) -> GradeList | None:
     return _generate_move_neighbor(grade_list)
 
 
+def _has_teacher_request(student: Student) -> bool:
+    """Check if a student has a teacher request.
+
+    Args:
+        student: The student to check.
+
+    Returns:
+        True if the student has a non-empty teacher request, False otherwise.
+    """
+    return student.teacher is not None and student.teacher != ""
+
+
+def _is_teacher_request_satisfied(student: Student, teacher_name: str) -> bool:
+    """Check if a student is with their requested teacher.
+
+    Args:
+        student: The student to check.
+        teacher_name: The name of the teacher the student is currently with.
+
+    Returns:
+        True if the student has no request or is with their requested teacher.
+    """
+    if not _has_teacher_request(student):
+        return True
+    return student.teacher == teacher_name
+
+
 def _generate_swap_neighbor(grade_list: GradeList) -> GradeList | None:
     """Generate a neighbor by swapping two students between classrooms.
 
-    Intelligently searches for valid swaps that respect cluster constraints,
-    trying multiple student combinations.
+    Intelligently searches for valid swaps that respect cluster constraints
+    and teacher requests, trying multiple student combinations.
 
     Args:
         grade_list: The current GradeList.
@@ -264,8 +291,16 @@ def _generate_swap_neighbor(grade_list: GradeList) -> GradeList | None:
 
         # Try combinations, prioritizing students without clusters first
         for s1_idx, student1 in students1_with_indices:
+            # Skip students with teacher requests - they must stay with their teacher
+            if _has_teacher_request(student1):
+                continue
+
             for s2_idx, student2 in students2_with_indices:
-                # Check if swap is valid (respects cluster constraints)
+                # Skip students with teacher requests - they must stay with their teacher
+                if _has_teacher_request(student2):
+                    continue
+
+                # Check if swap is valid (respects cluster and teacher request constraints)
                 if _is_swap_valid(classroom1, classroom2, student1, student2):
                     return _create_swap_neighbor(grade_list, idx1, s1_idx, idx2, s2_idx)
 
@@ -280,7 +315,8 @@ def _is_swap_valid(
 ) -> bool:
     """Check if swapping two students between classrooms is valid.
 
-    A swap is valid if cluster constraints are respected after the swap.
+    A swap is valid if cluster constraints and teacher requests are respected
+    after the swap.
 
     Args:
         classroom1: First classroom.
@@ -291,6 +327,18 @@ def _is_swap_valid(
     Returns:
         True if the swap is valid, False otherwise.
     """
+    # Get teacher names
+    teacher1_name = classroom1.teacher.name
+    teacher2_name = classroom2.teacher.name
+
+    # Check teacher request constraints
+    # If student1 has a teacher request, they can only be with that teacher
+    if _has_teacher_request(student1) and student1.teacher != teacher2_name:
+        return False
+
+    # If student2 has a teacher request, they can only be with that teacher
+    if _has_teacher_request(student2) and student2.teacher != teacher1_name:
+        return False
 
     # Get teacher cluster qualifications
     teacher1_clusters = set(classroom1.teacher.clusters)
@@ -346,7 +394,7 @@ def _generate_move_neighbor(grade_list: GradeList) -> GradeList | None:
     """Generate a neighbor by moving a single student between classrooms.
 
     Intelligently selects students that can be moved without violating
-    cluster constraints, prioritizing students without cluster requirements.
+    cluster constraints or teacher requests.
 
     Args:
         grade_list: The current GradeList.
@@ -370,6 +418,10 @@ def _generate_move_neighbor(grade_list: GradeList) -> GradeList | None:
             continue
 
         for student_idx, student in enumerate(source_class.students):
+            # Skip students with teacher requests - they must stay with their teacher
+            if _has_teacher_request(student):
+                continue
+
             for target_idx in range(num_classes):
                 if source_idx == target_idx:
                     continue

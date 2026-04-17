@@ -419,6 +419,142 @@ class TestSmartNeighborGeneration:
         assert gem_class is not None
         assert Cluster.GEM in gem_class.teacher.clusters
 
+    def test_neighbor_generator_never_moves_teacher_requested_students(self) -> None:
+        """Test that neighbor generation never moves students with teacher requests."""
+        from eagleclasslists.simulated_annealing import (
+            _generate_move_neighbor,
+            _generate_swap_neighbor,
+        )
+
+        teacher1 = Teacher(name="Ms. Smith", clusters=[])
+        teacher2 = Teacher(name="Mr. Jones", clusters=[])
+
+        # Create students - one with a teacher request, others without
+        requested_student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            teacher="Ms. Smith",  # Requested to be with Ms. Smith
+        )
+        regular_students = [
+            Student(
+                first_name=f"Student{i}",
+                last_name=f"Name{i}",
+                gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
+                behavior=Behavior.MEDIUM,
+            )
+            for i in range(4)
+        ]
+
+        # Place requested student with Ms. Smith (correct)
+        classroom1 = Classroom(
+            teacher=teacher1, students=[requested_student] + regular_students[:2]
+        )
+        classroom2 = Classroom(teacher=teacher2, students=regular_students[2:])
+
+        grade_list = GradeList(
+            classes=[classroom1, classroom2],
+            teachers=[teacher1, teacher2],
+            students=[requested_student] + regular_students,
+        )
+
+        # Generate many neighbors and verify none move the requested student
+        for _ in range(50):
+            # Try swap neighbor
+            swap_neighbor = _generate_swap_neighbor(grade_list)
+            if swap_neighbor is not None:
+                # Find Alice in the result
+                for classroom in swap_neighbor.classes:
+                    for student in classroom.students:
+                        if student.first_name == "Alice" and student.last_name == "Anderson":
+                            # Alice should still be with Ms. Smith
+                            assert classroom.teacher.name == "Ms. Smith", (
+                                f"Teacher request violated: Alice moved to {classroom.teacher.name}"
+                            )
+
+            # Try move neighbor
+            move_neighbor = _generate_move_neighbor(grade_list)
+            if move_neighbor is not None:
+                # Find Alice in the result
+                for classroom in move_neighbor.classes:
+                    for student in classroom.students:
+                        if student.first_name == "Alice" and student.last_name == "Anderson":
+                            # Alice should still be with Ms. Smith
+                            assert classroom.teacher.name == "Ms. Smith", (
+                                f"Teacher request violated: Alice moved to {classroom.teacher.name}"
+                            )
+
+    def test_optimization_preserves_teacher_requests(self) -> None:
+        """Test that optimization never moves students with teacher requests."""
+        teacher1 = Teacher(name="Ms. Smith", clusters=[])
+        teacher2 = Teacher(name="Mr. Jones", clusters=[])
+
+        # Create a student with a teacher request
+        requested_student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            teacher="Ms. Smith",  # Requested to be with Ms. Smith
+        )
+        regular_students = [
+            Student(
+                first_name=f"Student{i}",
+                last_name=f"Name{i}",
+                gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
+                behavior=Behavior.MEDIUM,
+            )
+            for i in range(10)
+        ]
+
+        # Place requested student with Ms. Smith
+        classroom1 = Classroom(
+            teacher=teacher1, students=[requested_student] + regular_students[:5]
+        )
+        classroom2 = Classroom(teacher=teacher2, students=regular_students[5:])
+
+        grade_list = GradeList(
+            classes=[classroom1, classroom2],
+            teachers=[teacher1, teacher2],
+            students=[requested_student] + regular_students,
+        )
+
+        # Optimize
+        config = AnnealingConfig(
+            initial_temperature=10.0,
+            cooling_rate=0.95,
+            min_temperature=0.01,
+            max_iterations=500,
+            iterations_per_temp=10,
+            random_seed=42,
+        )
+
+        optimized = optimize_grade_list(grade_list, config=config)
+
+        # Verify Alice is still with Ms. Smith
+        alice_class = None
+        for classroom in optimized.classes:
+            for student in classroom.students:
+                if student.first_name == "Alice" and student.last_name == "Anderson":
+                    alice_class = classroom
+                    break
+
+        assert alice_class is not None
+        assert alice_class.teacher.name == "Ms. Smith"
+
+        # Verify teacher request score is still 1.0
+        breakdown = get_fitness_breakdown(optimized)
+        assert breakdown["teacher_request"] == 1.0
+
 
 class TestOptimizeGradeList:
     """Test suite for optimize_grade_list function."""

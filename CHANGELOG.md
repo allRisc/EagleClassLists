@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated all test files, examples, and Streamlit UI to use new fields
   - Excel import/export now expects "Math" and "ELA" columns instead of "Academics"
 
+### Added
+- **Teacher request hard constraint** - Simulated annealing now treats
+  teacher requests as hard constraints (like cluster assignments)
+  - Students with a teacher request are never moved from their requested teacher
+  - Neighbor generation automatically skips students with teacher requests
+  - Fitness function returns 0.0 if any student with a request is not with
+    their requested teacher (all-or-nothing constraint)
+  - New ``teacher_request`` field in fitness breakdown
+
 0.3.0
 ----------------------------------------------------------------------
 

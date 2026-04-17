@@ -166,6 +166,147 @@ class TestClusterScore:
         assert breakdown["cluster"] == 1.0  # Nothing to violate
 
 
+class TestTeacherRequestScore:
+    """Test suite for teacher request assignment scoring."""
+
+    def test_perfect_teacher_request_match(self) -> None:
+        """Test when all students are with their requested teachers."""
+        teacher = Teacher(name="Ms. Smith", clusters=[])
+        student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            teacher="Ms. Smith",  # Requested teacher
+        )
+        classroom = Classroom(teacher=teacher, students=[student])
+        grade_list = GradeList(classes=[classroom], teachers=[teacher], students=[student])
+
+        breakdown = get_fitness_breakdown(grade_list)
+        assert breakdown["teacher_request"] == 1.0
+
+    def test_teacher_request_mismatch(self) -> None:
+        """Test when student with teacher request is with wrong teacher."""
+        teacher1 = Teacher(name="Ms. Smith", clusters=[])
+        teacher2 = Teacher(name="Mr. Jones", clusters=[])
+        student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            teacher="Ms. Smith",  # Requested Ms. Smith
+        )
+        # But placed with Mr. Jones
+        classroom = Classroom(teacher=teacher2, students=[student])
+        grade_list = GradeList(
+            classes=[classroom], teachers=[teacher1, teacher2], students=[student]
+        )
+
+        breakdown = get_fitness_breakdown(grade_list)
+        assert breakdown["teacher_request"] == 0.0
+
+    def test_partial_teacher_request_mismatch(self) -> None:
+        """Test when some students with requests are mismatched."""
+        teacher1 = Teacher(name="Ms. Smith", clusters=[])
+        teacher2 = Teacher(name="Mr. Jones", clusters=[])
+
+        student1 = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            teacher="Ms. Smith",  # Requested Ms. Smith, got Ms. Smith
+        )
+        student2 = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
+            behavior=Behavior.MEDIUM,
+            teacher="Ms. Smith",  # Requested Ms. Smith, but got Mr. Jones
+        )
+
+        classroom1 = Classroom(teacher=teacher1, students=[student1])  # Correct
+        classroom2 = Classroom(teacher=teacher2, students=[student2])  # Wrong
+
+        grade_list = GradeList(
+            classes=[classroom1, classroom2],
+            teachers=[teacher1, teacher2],
+            students=[student1, student2],
+        )
+
+        breakdown = get_fitness_breakdown(grade_list)
+        # Binary scoring: any violation results in 0.0
+        assert breakdown["teacher_request"] == 0.0
+
+    def test_no_teacher_requests(self) -> None:
+        """Test when there are no students with teacher requests."""
+        teacher = Teacher(name="Ms. Smith", clusters=[])
+        student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            teacher=None,  # No teacher request
+        )
+        classroom = Classroom(teacher=teacher, students=[student])
+        grade_list = GradeList(classes=[classroom], teachers=[teacher], students=[student])
+
+        breakdown = get_fitness_breakdown(grade_list)
+        assert breakdown["teacher_request"] == 1.0  # Nothing to violate
+
+    def test_teacher_request_causes_zero_fitness(self) -> None:
+        """Test that teacher request mismatch causes overall fitness of 0.0."""
+        teacher1 = Teacher(name="Ms. Smith", clusters=[])
+        teacher2 = Teacher(name="Mr. Jones", clusters=[])
+
+        student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            teacher="Ms. Smith",  # Requested Ms. Smith
+        )
+        # But placed with Mr. Jones
+        classroom = Classroom(teacher=teacher2, students=[student])
+        grade_list = GradeList(
+            classes=[classroom], teachers=[teacher1, teacher2], students=[student]
+        )
+
+        # Overall fitness should be 0.0 due to teacher request violation
+        fitness = calculate_fitness(grade_list)
+        assert fitness == 0.0
+
+    def test_teacher_request_empty_string_treated_as_no_request(self) -> None:
+        """Test that empty string teacher is treated as no request."""
+        teacher = Teacher(name="Ms. Smith", clusters=[])
+        student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            teacher="",  # Empty string should be treated as no request
+        )
+        classroom = Classroom(teacher=teacher, students=[student])
+        grade_list = GradeList(classes=[classroom], teachers=[teacher], students=[student])
+
+        breakdown = get_fitness_breakdown(grade_list)
+        assert breakdown["teacher_request"] == 1.0  # Empty string is no request
+
+
 class TestGenderBalance:
     """Test suite for gender balance scoring."""
 
@@ -537,6 +678,7 @@ class TestFitnessBreakdown:
 
         expected_keys = [
             "cluster",
+            "teacher_request",
             "gender",
             "math",
             "ela",

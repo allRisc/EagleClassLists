@@ -44,9 +44,9 @@ class FitnessWeights:
     All weights should be non-negative. The final fitness score is computed
     as a weighted average of individual component scores.
 
-    Note: Cluster correctness is not included as a weight because it is a
-    hard constraint enforced by the optimization algorithm. The fitness
-    will always be 0.0 if cluster constraints are violated.
+    Note: Cluster and teacher request correctness are not included as weights
+    because they are hard constraints. The fitness will always be 0.0 if
+    any hard constraint is violated.
     """
 
     gender: float = 1.0
@@ -91,11 +91,14 @@ def calculate_fitness(grade_list: GradeList, weights: FitnessWeights | None = No
     """Calculate the overall fitness score for a GradeList.
 
     Computes a weighted fitness score between 0 and 1, where 1 represents
-    a perfectly balanced grade list with all cluster constraints satisfied.
+    a perfectly balanced grade list with all hard constraints satisfied.
 
-    Cluster correctness is a hard constraint - if any cluster student is
-    with an unqualified teacher, the fitness is 0.0 regardless of other
-    metrics.
+    Hard constraints:
+
+    * Cluster correctness: if any cluster student is with an unqualified
+      teacher, the fitness is 0.0.
+    * Teacher requests: if any student with an assigned teacher request
+      is not with that teacher, the fitness is 0.0.
 
     Args:
         grade_list: The GradeList to evaluate.
@@ -116,6 +119,11 @@ def calculate_fitness(grade_list: GradeList, weights: FitnessWeights | None = No
     if cluster_score == 0.0:
         return 0.0  # Hard constraint violation
 
+    # Check teacher request constraint (hard constraint)
+    teacher_request_score = _calculate_teacher_request_score(grade_list)
+    if teacher_request_score == 0.0:
+        return 0.0  # Hard constraint violation
+
     # Calculate other component scores
     gender_score = _calculate_gender_balance(grade_list)
     math_score = _calculate_math_balance(grade_list)
@@ -125,7 +133,7 @@ def calculate_fitness(grade_list: GradeList, weights: FitnessWeights | None = No
     speech_score = _calculate_speech_balance(grade_list)
     class_size_score = _calculate_class_size_balance(grade_list)
 
-    # Weighted average (cluster not included in weight calculation)
+    # Weighted average (hard constraints not included in weight calculation)
     total_weight = weights.total_weight()
     if total_weight == 0:
         return 0.0
@@ -170,6 +178,37 @@ def _calculate_cluster_score(grade_list: GradeList) -> float:
         for student in classroom.students:
             if student.cluster is not None:
                 if student.cluster not in teacher_cluster_set:
+                    return 0.0  # Any violation results in score of 0
+
+    return 1.0
+
+
+def _calculate_teacher_request_score(grade_list: GradeList) -> float:
+    """Calculate teacher request correctness score.
+
+    Checks that all students with a specific teacher request are placed
+    in a classroom with that teacher. This is an all-or-nothing constraint:
+    if any student with a teacher request is not with their requested
+    teacher, the entire grade list gets a score of 0.0.
+
+    Args:
+        grade_list: The GradeList to evaluate.
+
+    Returns:
+        A binary score: 1.0 if all teacher requests are satisfied,
+        0.0 if any teacher request is not satisfied.
+    """
+    if not grade_list.classes:
+        return 1.0  # No classes means no violations
+
+    for classroom in grade_list.classes:
+        teacher_name = classroom.teacher.name
+
+        for student in classroom.students:
+            # Check if student has a teacher request
+            if student.teacher is not None and student.teacher != "":
+                # Student has a teacher request - must match exactly
+                if student.teacher != teacher_name:
                     return 0.0  # Any violation results in score of 0
 
     return 1.0
@@ -450,6 +489,7 @@ def get_fitness_breakdown(
 
     return {
         "cluster": _calculate_cluster_score(grade_list),
+        "teacher_request": _calculate_teacher_request_score(grade_list),
         "gender": _calculate_gender_balance(grade_list),
         "math": _calculate_math_balance(grade_list),
         "ela": _calculate_ela_balance(grade_list),
