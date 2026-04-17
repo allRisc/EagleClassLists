@@ -484,64 +484,66 @@ def _render_optimization_section(grade_list: GradeList) -> None:
     current_fitness = calculate_fitness(grade_list)
     st.metric("Current Fitness Score", f"{current_fitness:.4f}")
 
-    # Fitness breakdown expander
-    with st.expander("📊 View Fitness Function Details", expanded=False):
-        _render_fitness_details(grade_list)
+    # Advanced settings collapsible section
+    with st.expander("⚙️ Advanced Optimization Settings", expanded=False):
+        # Fitness breakdown expander
+        with st.expander("📊 View Fitness Function Details", expanded=False):
+            _render_fitness_details(grade_list)
 
-    # Optimization controls
-    st.subheader("Optimization Settings")
+        # Optimization controls
+        st.subheader("Optimization Settings")
 
-    opt_col1, opt_col2, opt_col3 = st.columns(3)
+        opt_col1, opt_col2, opt_col3 = st.columns(3)
 
-    with opt_col1:
-        initial_temp = st.slider(
-            "Initial Temperature",
-            min_value=10.0,
-            max_value=200.0,
-            value=100.0,
-            step=10.0,
-            help="Higher values allow more exploration early on.",
-        )
+        with opt_col1:
+            initial_temp = st.slider(
+                "Initial Temperature",
+                min_value=10.0,
+                max_value=200.0,
+                value=100.0,
+                step=10.0,
+                help="Higher values allow more exploration early on.",
+            )
 
-    with opt_col2:
-        cooling_rate = st.slider(
-            "Cooling Rate",
-            min_value=0.95,
-            max_value=0.999,
-            value=0.995,
-            step=0.001,
-            format="%.3f",
-            help="Rate at which temperature decreases. Higher = slower cooling.",
-        )
+        with opt_col2:
+            cooling_rate = st.slider(
+                "Cooling Rate",
+                min_value=0.95,
+                max_value=0.999,
+                value=0.995,
+                step=0.001,
+                format="%.3f",
+                help="Rate at which temperature decreases. Higher = slower cooling.",
+            )
 
-    with opt_col3:
-        max_iterations = st.slider(
-            "Max Iterations",
-            min_value=1000,
-            max_value=50000,
-            value=10000,
-            step=1000,
-            help="Maximum number of iterations to run.",
-        )
+        with opt_col3:
+            max_iterations = st.slider(
+                "Max Iterations",
+                min_value=1000,
+                max_value=50000,
+                value=10000,
+                step=1000,
+                help="Maximum number of iterations to run.",
+            )
 
-    # Fitness weights configuration
-    with st.expander("⚖️ Configure Fitness Weights", expanded=False):
-        st.write("Adjust the relative importance of each balancing factor:")
+        # Fitness weights configuration
+        with st.expander("⚖️ Configure Fitness Weights", expanded=False):
+            st.write("Adjust the relative importance of each balancing factor:")
 
-        weight_col1, weight_col2, weight_col3 = st.columns(3)
+            weight_col1, weight_col2, weight_col3 = st.columns(3)
 
-        with weight_col1:
-            gender_weight = st.slider("Gender", 0.0, 5.0, 1.0, 0.5)
-            math_weight = st.slider("Math", 0.0, 5.0, 0.5, 0.5)
-            ela_weight = st.slider("ELA", 0.0, 5.0, 0.5, 0.5)
+            with weight_col1:
+                gender_weight = st.slider("Gender", 0.0, 5.0, 1.0, 0.5)
+                math_weight = st.slider("Math", 0.0, 5.0, 0.5, 0.5)
+                ela_weight = st.slider("ELA", 0.0, 5.0, 0.5, 0.5)
 
-        with weight_col2:
-            behavior_weight = st.slider("Behavior", 0.0, 5.0, 1.0, 0.5)
-            class_size_weight = st.slider("Class Size", 0.0, 5.0, 1.0, 0.5)
+            with weight_col2:
+                behavior_weight = st.slider("Behavior", 0.0, 5.0, 1.0, 0.5)
+                class_size_weight = st.slider("Class Size", 0.0, 5.0, 1.0, 0.5)
 
-        with weight_col3:
-            resource_weight = st.slider("Resource", 0.0, 5.0, 0.5, 0.5)
-            speech_weight = st.slider("Speech", 0.0, 5.0, 0.5, 0.5)
+            with weight_col3:
+                resource_weight = st.slider("Resource", 0.0, 5.0, 0.5, 0.5)
+                speech_weight = st.slider("Speech", 0.0, 5.0, 0.5, 0.5)
 
     # Check if we can run optimization
     unassigned_count = len(
