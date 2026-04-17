@@ -205,9 +205,9 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
 def _generate_neighbor(grade_list: GradeList) -> GradeList | None:
     """Generate a neighbor solution by swapping students between classrooms.
 
-    This implementation respects hard constraints (cluster assignments and
-    teacher requests). It only generates moves that do not violate these
-    constraints.
+    This implementation respects hard constraints (cluster assignments,
+    teacher requests, and exclusions). It only generates moves that do not
+    violate these constraints.
 
     Args:
         grade_list: The current GradeList.
@@ -315,8 +315,8 @@ def _is_swap_valid(
 ) -> bool:
     """Check if swapping two students between classrooms is valid.
 
-    A swap is valid if cluster constraints and teacher requests are respected
-    after the swap.
+    A swap is valid if cluster constraints, teacher requests, and exclusions
+    are respected after the swap.
 
     Args:
         classroom1: First classroom.
@@ -352,7 +352,88 @@ def _is_swap_valid(
     if student2.cluster is not None and student2.cluster not in teacher1_clusters:
         return False
 
+    # Check exclusion constraints for the swap
+    # When swapping, student1 leaves classroom1 and goes to classroom2
+    # student2 leaves classroom2 and goes to classroom1
+    if _has_exclusion_conflict_for_swap(classroom1, classroom2, student1, student2):
+        return False
+
     return True
+
+
+def _has_exclusion_conflict_for_swap(
+    classroom1: Classroom,
+    classroom2: Classroom,
+    student1: Student,
+    student2: Student,
+) -> bool:
+    """Check if swapping two students would create exclusion conflicts.
+
+    When swapping, student1 leaves classroom1 and joins classroom2,
+    while student2 leaves classroom2 and joins classroom1.
+
+    Args:
+        classroom1: First classroom.
+        classroom2: Second classroom.
+        student1: Student from classroom1 to swap.
+        student2: Student from classroom2 to swap.
+
+    Returns:
+        True if the swap would create an exclusion conflict, False otherwise.
+    """
+    student1_name = f"{student1.first_name} {student1.last_name}"
+    student2_name = f"{student2.first_name} {student2.last_name}"
+
+    # Build sets of students in each classroom after the swap
+    # classroom1 will have student2 instead of student1
+    classroom1_after = {
+        f"{s.first_name} {s.last_name}"
+        for s in classroom1.students
+        if s.first_name != student1.first_name or s.last_name != student1.last_name
+    }
+    classroom1_after.add(student2_name)
+
+    # classroom2 will have student1 instead of student2
+    classroom2_after = {
+        f"{s.first_name} {s.last_name}"
+        for s in classroom2.students
+        if s.first_name != student2.first_name or s.last_name != student2.last_name
+    }
+    classroom2_after.add(student1_name)
+
+    # Check student1's exclusions against classroom2 (after swap)
+    if student1.exclusions:
+        for excluded_name in student1.exclusions:
+            if excluded_name in classroom2_after and excluded_name != student2_name:
+                return True
+
+    # Check student2's exclusions against classroom1 (after swap)
+    if student2.exclusions:
+        for excluded_name in student2.exclusions:
+            if excluded_name in classroom1_after and excluded_name != student1_name:
+                return True
+
+    # Check if anyone in classroom2 (after swap) excludes student1
+    for s in classroom2.students:
+        if s.first_name == student2.first_name and s.last_name == student2.last_name:
+            continue  # Skip student2 who is leaving
+        if s.exclusions and student1_name in s.exclusions:
+            return True
+    # Also check student2 (who will be in classroom1 after swap)
+    if student2.exclusions and student1_name in student2.exclusions:
+        return True
+
+    # Check if anyone in classroom1 (after swap) excludes student2
+    for s in classroom1.students:
+        if s.first_name == student1.first_name and s.last_name == student1.last_name:
+            continue  # Skip student1 who is leaving
+        if s.exclusions and student2_name in s.exclusions:
+            return True
+    # Also check student1 (who will be in classroom2 after swap)
+    if student1.exclusions and student2_name in student1.exclusions:
+        return True
+
+    return False
 
 
 def _create_swap_neighbor(
@@ -394,7 +475,7 @@ def _generate_move_neighbor(grade_list: GradeList) -> GradeList | None:
     """Generate a neighbor by moving a single student between classrooms.
 
     Intelligently selects students that can be moved without violating
-    cluster constraints or teacher requests.
+    cluster constraints, teacher requests, or exclusion constraints.
 
     Args:
         grade_list: The current GradeList.
@@ -433,6 +514,10 @@ def _generate_move_neighbor(grade_list: GradeList) -> GradeList | None:
                 if student.cluster is not None and student.cluster not in target_clusters:
                     continue
 
+                # Check exclusion constraints
+                if _has_exclusion_conflict_for_move(target_class, student):
+                    continue
+
                 valid_moves.append((source_idx, student_idx, target_idx))
 
     if valid_moves:
@@ -441,6 +526,35 @@ def _generate_move_neighbor(grade_list: GradeList) -> GradeList | None:
         return _create_move_neighbor(grade_list, source_idx, student_idx, target_idx)
 
     return None
+
+
+def _has_exclusion_conflict_for_move(target_class: Classroom, student: Student) -> bool:
+    """Check if moving a student to a classroom would create exclusion conflicts.
+
+    Args:
+        target_class: The classroom the student would move to.
+        student: The student to check.
+
+    Returns:
+        True if the move would create an exclusion conflict, False otherwise.
+    """
+    student_name = f"{student.first_name} {student.last_name}"
+
+    # Build set of students in target classroom
+    classroom_student_names = {f"{s.first_name} {s.last_name}" for s in target_class.students}
+
+    # Check 1: Does this student exclude anyone in the classroom?
+    if student.exclusions:
+        for excluded_name in student.exclusions:
+            if excluded_name in classroom_student_names:
+                return True
+
+    # Check 2: Does anyone in the classroom exclude this student?
+    for classroom_student in target_class.students:
+        if classroom_student.exclusions and student_name in classroom_student.exclusions:
+            return True
+
+    return False
 
 
 def _create_move_neighbor(

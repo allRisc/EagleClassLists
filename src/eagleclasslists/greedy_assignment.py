@@ -45,6 +45,22 @@ if TYPE_CHECKING:
     from eagleclasslists.fitness import FitnessWeights
 
 
+class ImpossibleConstraintsError(Exception):
+    """Raised when exclusion constraints cannot be satisfied."""
+
+    def __init__(self, message: str, student_name: str, excluded_names: list[str]) -> None:
+        """Initialize the error with details about the impossible constraint.
+
+        Args:
+            message: User-friendly error message.
+            student_name: The name of the student that cannot be placed.
+            excluded_names: List of student names they exclude.
+        """
+        self.student_name = student_name
+        self.excluded_names = excluded_names
+        super().__init__(message)
+
+
 def greedy_assign_students(
     grade_list: GradeList,
     students: list[Student] | None = None,
@@ -55,12 +71,13 @@ def greedy_assign_students(
 
     Sequentially assigns each student to the classroom that maximizes the
     overall fitness score. For each student, the algorithm tries all valid
-    classrooms (respecting cluster constraints and teacher requests) and
-    selects the one that yields the highest fitness.
+    classrooms (respecting cluster constraints, teacher requests, and exclusions)
+    and selects the one that yields the highest fitness.
 
     Hard constraints are always respected:
     - Cluster students are only placed with qualified teachers
     - Students with teacher requests are only placed with their requested teacher
+    - Students are never placed with anyone in their exclusion list
 
     Args:
         grade_list: The GradeList containing the classrooms and teachers.
@@ -75,6 +92,11 @@ def greedy_assign_students(
 
     Returns:
         A new GradeList with all students assigned to classrooms.
+
+    Raises:
+        ImpossibleConstraintsError: If a student cannot be assigned to any
+            classroom due to exclusion constraints (not enough classrooms to
+            separate excluded students).
     """
     from eagleclasslists.fitness import calculate_fitness
 
@@ -87,8 +109,9 @@ def greedy_assign_students(
 
     # Sort students to handle hard constraints first:
     # 1. Students with teacher requests (most constrained)
-    # 2. Students with cluster assignments
-    # 3. Other students
+    # 2. Students with exclusions (high constraint)
+    # 3. Students with cluster assignments
+    # 4. Other students
     sorted_students = _sort_by_constraints(students)
 
     total_students = len(sorted_students)
@@ -98,8 +121,24 @@ def greedy_assign_students(
         best_classroom_idx = _find_best_classroom(result, student, weights)
 
         if best_classroom_idx is None:
-            # No valid classroom found - this shouldn't happen with proper input
-            # but we handle it gracefully by skipping this student
+            # No valid classroom found
+            student_name = f"{student.first_name} {student.last_name}"
+
+            # Check if this is due to exclusion constraints
+            excluded_by_others = _get_excluded_by_others(result, student)
+            has_exclusion_conflicts = student.exclusions or excluded_by_others
+
+            if has_exclusion_conflicts:
+                # Exclusion constraints cannot be satisfied - raise error
+                all_conflicts = list(set(student.exclusions) | set(excluded_by_others))
+                raise ImpossibleConstraintsError(
+                    f"Cannot satisfy constraints for student '{student_name}'. "
+                    f"Exclusion conflicts with: {', '.join(all_conflicts)}. "
+                    f"Not enough classrooms available to separate them.",
+                    student_name=student_name,
+                    excluded_names=all_conflicts,
+                )
+            # For other constraint failures (teacher/cluster), skip gracefully
             continue
 
         # Add student to the best classroom
@@ -139,16 +178,19 @@ def _sort_by_constraints(students: list[Student]) -> list[Student]:
         students: The list of students to sort.
 
     Returns:
-        A new list sorted by constraint level (teacher request > cluster > none).
+        A new list sorted by constraint level
+        (teacher request > exclusions > cluster > none).
     """
 
     def constraint_key(student: Student) -> int:
         # Lower values = higher priority (assigned first)
         if student.teacher is not None and student.teacher != "":
             return 0  # Highest priority: has teacher request
+        if student.exclusions:
+            return 1  # High priority: has exclusions
         if student.cluster is not None:
-            return 1  # Medium priority: has cluster assignment
-        return 2  # Lowest priority: no constraints
+            return 2  # Medium priority: has cluster assignment
+        return 3  # Lowest priority: no constraints
 
     return sorted(students, key=constraint_key)
 
@@ -204,6 +246,8 @@ def _is_valid_assignment(classroom: Classroom, student: Student) -> bool:
     Validates hard constraints:
     - Teacher request: if student has a request, must match classroom's teacher
     - Cluster: if student has a cluster, teacher must be qualified
+    - Exclusions: bidirectional - student cannot be with anyone they exclude,
+      and cannot be with anyone who excludes them
 
     Args:
         classroom: The classroom to check.
@@ -224,7 +268,62 @@ def _is_valid_assignment(classroom: Classroom, student: Student) -> bool:
     if student.cluster is not None and student.cluster not in teacher_clusters:
         return False
 
+    # Check exclusion constraints (bidirectional)
+    if _has_exclusion_conflict(classroom, student):
+        return False
+
     return True
+
+
+def _has_exclusion_conflict(classroom: Classroom, student: Student) -> bool:
+    """Check if a student has exclusion conflicts with classroom students.
+
+    This is a BIDIRECTIONAL check:
+    1. Does the student exclude anyone already in the classroom?
+    2. Does anyone already in the classroom exclude this student?
+
+    Args:
+        classroom: The classroom to check.
+        student: The student to check for conflicts.
+
+    Returns:
+        True if there's any exclusion conflict, False otherwise.
+    """
+    student_name = f"{student.first_name} {student.last_name}"
+    classroom_student_names = {f"{s.first_name} {s.last_name}" for s in classroom.students}
+
+    # Check 1: Does this student exclude anyone in the classroom?
+    if student.exclusions:
+        for excluded_name in student.exclusions:
+            if excluded_name in classroom_student_names:
+                return True
+
+    # Check 2: Does anyone in the classroom exclude this student?
+    for classroom_student in classroom.students:
+        if classroom_student.exclusions and student_name in classroom_student.exclusions:
+            return True
+
+    return False
+
+
+def _get_excluded_by_others(grade_list: GradeList, student: Student) -> list[str]:
+    """Get list of students who exclude the given student.
+
+    Args:
+        grade_list: The GradeList to search.
+        student: The student to check.
+
+    Returns:
+        List of student names who exclude this student.
+    """
+    student_name = f"{student.first_name} {student.last_name}"
+    excluded_by: list[str] = []
+
+    for other_student in grade_list.students:
+        if other_student.exclusions and student_name in other_student.exclusions:
+            excluded_by.append(f"{other_student.first_name} {other_student.last_name}")
+
+    return excluded_by
 
 
 def _copy_grade_list(grade_list: GradeList) -> GradeList:

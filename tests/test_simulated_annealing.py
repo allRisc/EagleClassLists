@@ -857,3 +857,215 @@ class TestOptimizeMultipleTimes:
         assert optimized is not None
         assert 0.0 <= fitness <= 1.0
         assert isinstance(optimized, GradeList)
+
+
+class TestExclusionConstraintsAnnealing:
+    """Test suite for exclusion constraint enforcement in simulated annealing."""
+
+    def test_is_swap_valid_rejects_exclusion_conflict(self) -> None:
+        """Test that _is_swap_valid returns False for exclusion conflicts."""
+        from eagleclasslists.simulated_annealing import _is_swap_valid
+
+        teacher1 = Teacher(name="Teacher A", clusters=[])
+        teacher2 = Teacher(name="Teacher B", clusters=[])
+
+        # Alice excludes Bob
+        student_alice = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],
+        )
+        student_bob = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+
+        classroom1 = Classroom(teacher=teacher1, students=[student_alice])
+        classroom2 = Classroom(teacher=teacher2, students=[student_bob])
+
+        # Swapping Alice and Bob would put them together - invalid
+        assert _is_swap_valid(classroom1, classroom2, student_alice, student_bob) is False
+
+    def test_is_swap_valid_allows_valid_swap(self) -> None:
+        """Test that _is_swap_valid returns True when no exclusion conflicts."""
+        from eagleclasslists.simulated_annealing import _is_swap_valid
+
+        teacher1 = Teacher(name="Teacher A", clusters=[])
+        teacher2 = Teacher(name="Teacher B", clusters=[])
+
+        # Alice excludes Charlie (not Bob)
+        student_alice = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Charlie Clark"],
+        )
+        student_bob = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+
+        classroom1 = Classroom(teacher=teacher1, students=[student_alice])
+        classroom2 = Classroom(teacher=teacher2, students=[student_bob])
+
+        # Swapping Alice and Bob would be fine
+        assert _is_swap_valid(classroom1, classroom2, student_alice, student_bob) is True
+
+    def test_optimization_preserves_exclusions(self) -> None:
+        """Test that optimization never violates exclusion constraints."""
+        teacher1 = Teacher(name="Teacher A", clusters=[])
+        teacher2 = Teacher(name="Teacher B", clusters=[])
+
+        # Alice excludes Bob - they start in different classes
+        student_alice = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],
+        )
+        student_bob = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        # Add some other students for more optimization options
+        other_students = [
+            Student(
+                first_name=f"Student{i}",
+                last_name=f"Name{i}",
+                gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
+                behavior=Behavior.MEDIUM,
+            )
+            for i in range(8)
+        ]
+
+        # Alice and Bob start in different classrooms
+        classroom1 = Classroom(teacher=teacher1, students=[student_alice] + other_students[:4])
+        classroom2 = Classroom(teacher=teacher2, students=[student_bob] + other_students[4:])
+
+        grade_list = GradeList(
+            classes=[classroom1, classroom2],
+            teachers=[teacher1, teacher2],
+            students=[student_alice, student_bob] + other_students,
+        )
+
+        # Optimize
+        config = AnnealingConfig(
+            initial_temperature=10.0,
+            cooling_rate=0.95,
+            min_temperature=0.01,
+            max_iterations=500,
+            iterations_per_temp=10,
+            random_seed=42,
+        )
+
+        optimized = optimize_grade_list(grade_list, config=config)
+
+        # Verify Alice and Bob are still in different classrooms
+        alice_class = None
+        bob_class = None
+        for classroom in optimized.classes:
+            for student in classroom.students:
+                if student.first_name == "Alice" and student.last_name == "Anderson":
+                    alice_class = classroom.teacher.name
+                elif student.first_name == "Bob" and student.last_name == "Brown":
+                    bob_class = classroom.teacher.name
+
+        assert alice_class != bob_class
+        assert alice_class is not None
+        assert bob_class is not None
+
+    def test_neighbor_generator_never_creates_exclusion_violations(self) -> None:
+        """Test that neighbor generation never creates exclusion conflicts."""
+        from eagleclasslists.simulated_annealing import (
+            _generate_move_neighbor,
+            _generate_swap_neighbor,
+        )
+
+        teacher1 = Teacher(name="Teacher A", clusters=[])
+        teacher2 = Teacher(name="Teacher B", clusters=[])
+
+        # Alice excludes Bob
+        student_alice = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],
+        )
+        student_bob = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        other_students = [
+            Student(
+                first_name=f"Student{i}",
+                last_name=f"Name{i}",
+                gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
+                behavior=Behavior.MEDIUM,
+            )
+            for i in range(6)
+        ]
+
+        # Alice and Bob in different classrooms
+        classroom1 = Classroom(teacher=teacher1, students=[student_alice] + other_students[:3])
+        classroom2 = Classroom(teacher=teacher2, students=[student_bob] + other_students[3:])
+
+        grade_list = GradeList(
+            classes=[classroom1, classroom2],
+            teachers=[teacher1, teacher2],
+            students=[student_alice, student_bob] + other_students,
+        )
+
+        # Generate many neighbors and verify none create exclusion conflicts
+        for _ in range(50):
+            # Try swap neighbor
+            swap_neighbor = _generate_swap_neighbor(grade_list)
+            if swap_neighbor is not None:
+                for classroom in swap_neighbor.classes:
+                    student_names = {f"{s.first_name} {s.last_name}" for s in classroom.students}
+                    # Alice and Bob should never be in the same classroom
+                    assert not (
+                        "Alice Anderson" in student_names and "Bob Brown" in student_names
+                    ), f"Swap created exclusion violation: {student_names}"
+
+            # Try move neighbor
+            move_neighbor = _generate_move_neighbor(grade_list)
+            if move_neighbor is not None:
+                for classroom in move_neighbor.classes:
+                    student_names = {f"{s.first_name} {s.last_name}" for s in classroom.students}
+                    # Alice and Bob should never be in the same classroom
+                    assert not (
+                        "Alice Anderson" in student_names and "Bob Brown" in student_names
+                    ), f"Move created exclusion violation: {student_names}"

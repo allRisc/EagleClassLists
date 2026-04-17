@@ -21,6 +21,23 @@ Unreleased
   assignment operations.
 
 ### Added
+- **Student Exclusions** - New feature to prevent certain students from being placed in the
+  same classroom together
+  - Added ``exclusions`` field to ``Student`` model: list of student names ("First Last")
+    that this student cannot be with
+  - Excel import/export: exclusions stored as comma-separated names (e.g., "Alice Smith, Bob Jones")
+  - Directional exclusions: if Student A excludes Student B, they cannot share a classroom
+    (mutual exclusion enforced by algorithm)
+  - UI: Students page shows 🚫 N indicator (where N is number of exclusions)
+  - UI: Add/Edit student forms include searchable multi-select for choosing excluded students
+  - Algorithm: Greedy assignment enforces exclusions as hard constraints
+  - Algorithm: Students with exclusions are prioritized in assignment order
+  - Algorithm: Raises ``ImpossibleConstraintsError`` if exclusion constraints cannot be satisfied
+  - Algorithm: Simulated annealing enforces exclusions as hard constraints
+  - Algorithm: Neighbor generation (swaps and moves) respects exclusion constraints
+  - Algorithm: Optimization never proposes solutions that violate exclusions
+  - UI: Shows warning for orphaned exclusions (when excluded student no longer exists)
+  - UI: Automatically cleans up orphaned exclusions when saving student changes
 - **Streamlit auto-balance now uses greedy algorithm** - The "Auto-Balance Classes" button
   in the Classroom Management page now uses the greedy assignment algorithm instead of
   simple even distribution. This provides intelligent student assignment that maximizes

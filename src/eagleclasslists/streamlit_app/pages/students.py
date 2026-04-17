@@ -36,6 +36,34 @@ from eagleclasslists.classlist import (
 )
 
 
+def _get_valid_exclusions(student: Student, all_students: list[Student]) -> list[str]:
+    """Get list of valid exclusions (students that actually exist).
+
+    Args:
+        student: The student whose exclusions to check.
+        all_students: List of all students in the grade.
+
+    Returns:
+        List of exclusion names that correspond to existing students.
+    """
+    existing_names = {f"{s.first_name} {s.last_name}" for s in all_students}
+    return [ex for ex in student.exclusions if ex in existing_names]
+
+
+def _get_orphaned_exclusions(student: Student, all_students: list[Student]) -> list[str]:
+    """Get list of orphaned exclusions (students that no longer exist).
+
+    Args:
+        student: The student whose exclusions to check.
+        all_students: List of all students in the grade.
+
+    Returns:
+        List of exclusion names that don't correspond to any existing student.
+    """
+    existing_names = {f"{s.first_name} {s.last_name}" for s in all_students}
+    return [ex for ex in student.exclusions if ex not in existing_names]
+
+
 def render_students_page() -> None:
     """Render the students management page."""
     st.header("Students")
@@ -113,6 +141,15 @@ def render_students_page() -> None:
                     key="new_student_teacher",
                 )
 
+                # Exclusions (optional)
+                exclusion_options = [f"{s.first_name} {s.last_name}" for s in grade_list.students]
+                selected_exclusions = st.multiselect(
+                    "Exclusions (cannot be with these students)",
+                    options=exclusion_options,
+                    default=[],
+                    key="new_student_exclusions",
+                )
+
             submitted = st.form_submit_button("Add Student")
             if submitted:
                 if not first_name.strip():
@@ -136,6 +173,7 @@ def render_students_page() -> None:
                             resource=resource,
                             speech=speech,
                             teacher=selected_teacher.name if selected_teacher else None,
+                            exclusions=selected_exclusions,
                         )
                         grade_list.students.append(new_student)
                     st.success(f"Added student: {first_name} {last_name}")
@@ -168,6 +206,14 @@ def render_students_page() -> None:
                     attrs.append("🗣️ Speech")
                 if student.teacher:
                     attrs.append(f"👨‍🏫 {student.teacher}")
+                if student.exclusions:
+                    # Check for orphaned exclusions
+                    valid_exclusions = _get_valid_exclusions(student, grade_list.students)
+                    orphaned_count = len(student.exclusions) - len(valid_exclusions)
+                    if orphaned_count > 0:
+                        attrs.append(f"🚫 {len(student.exclusions)} ({orphaned_count} orphaned)")
+                    else:
+                        attrs.append(f"🚫 {len(student.exclusions)}")
                 st.write(" • ".join(attrs))
 
             with col3:
@@ -183,6 +229,11 @@ def render_students_page() -> None:
             # Edit form
             if st.session_state.get(f"editing_student_{idx}", False):
                 with st.form(f"edit_student_form_{idx}"):
+                    # Check for orphaned exclusions (inside form)
+                    orphaned = _get_orphaned_exclusions(student, grade_list.students)
+                    if orphaned:
+                        st.warning(f"⚠️ Orphaned exclusions will be removed: {', '.join(orphaned)}")
+
                     c1, c2 = st.columns(2)
 
                     with c1:
@@ -267,6 +318,24 @@ def render_students_page() -> None:
                             key=f"edit_teacher_{idx}",
                         )
 
+                        # Exclusions (optional)
+                        edit_exclusion_options = [
+                            f"{s.first_name} {s.last_name}"
+                            for s in grade_list.students
+                            if s.first_name != student.first_name
+                            or s.last_name != student.last_name
+                        ]
+                        # Only show valid exclusions as default (filter out orphaned)
+                        valid_current_exclusions = [
+                            ex for ex in student.exclusions if ex in edit_exclusion_options
+                        ]
+                        new_exclusions = st.multiselect(
+                            "Exclusions",
+                            options=edit_exclusion_options,
+                            default=valid_current_exclusions,
+                            key=f"edit_exclusions_{idx}",
+                        )
+
                     btn_col1, btn_col2 = st.columns(2)
                     with btn_col1:
                         if st.form_submit_button("Save Changes"):
@@ -281,6 +350,15 @@ def render_students_page() -> None:
                             student.resource = new_resource
                             student.speech = new_speech
                             student.teacher = new_teacher.name if new_teacher else None
+                            # Clean up orphaned exclusions on save
+                            # Get all existing student names from grade list
+                            existing_names = {
+                                f"{s.first_name} {s.last_name}" for s in grade_list.students
+                            }
+                            # Filter new exclusions to only include valid ones
+                            student.exclusions = [
+                                ex for ex in new_exclusions if ex in existing_names
+                            ]
 
                             # Update references in classrooms
                             for classroom in grade_list.classes:

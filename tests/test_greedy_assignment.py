@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from eagleclasslists.classlist import (
     ELA,
     Behavior,
@@ -15,9 +17,11 @@ from eagleclasslists.classlist import (
 )
 from eagleclasslists.fitness import FitnessWeights, calculate_fitness
 from eagleclasslists.greedy_assignment import (
+    ImpossibleConstraintsError,
     _copy_grade_list,
     _find_best_classroom,
     _get_unassigned_students,
+    _has_exclusion_conflict,
     _is_valid_assignment,
     _sort_by_constraints,
     greedy_assign_students,
@@ -679,3 +683,298 @@ class TestCombinedConstraints:
         # No valid classroom exists - student should not be assigned
         total_assigned = sum(len(c.students) for c in result.classes)
         assert total_assigned == 0
+
+
+class TestExclusionConstraints:
+    """Test suite for exclusion constraint enforcement."""
+
+    def test_has_exclusion_conflict_with_excluded_student(self) -> None:
+        """Test _has_exclusion_conflict returns True when excluded student present."""
+        teacher = Teacher(name="Teacher A", clusters=[])
+        student_in_class = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        classroom = Classroom(teacher=teacher, students=[student_in_class])
+
+        student_with_exclusion = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],
+        )
+
+        assert _has_exclusion_conflict(classroom, student_with_exclusion) is True
+
+    def test_has_exclusion_conflict_no_conflict(self) -> None:
+        """Test _has_exclusion_conflict returns False when no excluded students."""
+        teacher = Teacher(name="Teacher A", clusters=[])
+        student_in_class = Student(
+            first_name="Charlie",
+            last_name="Clark",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        classroom = Classroom(teacher=teacher, students=[student_in_class])
+
+        student_with_exclusion = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],  # Charlie is not excluded
+        )
+
+        assert _has_exclusion_conflict(classroom, student_with_exclusion) is False
+
+    def test_has_exclusion_conflict_empty_exclusions(self) -> None:
+        """Test _has_exclusion_conflict returns False when student has no exclusions."""
+        teacher = Teacher(name="Teacher A", clusters=[])
+        student_in_class = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        classroom = Classroom(teacher=teacher, students=[student_in_class])
+
+        student_no_exclusions = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=[],
+        )
+
+        assert _has_exclusion_conflict(classroom, student_no_exclusions) is False
+
+    def test_is_valid_assignment_rejects_exclusion_conflict(self) -> None:
+        """Test _is_valid_assignment returns False for exclusion conflicts."""
+        teacher = Teacher(name="Teacher A", clusters=[])
+        student_in_class = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        classroom = Classroom(teacher=teacher, students=[student_in_class])
+
+        student_with_exclusion = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],
+        )
+
+        assert _is_valid_assignment(classroom, student_with_exclusion) is False
+
+    def test_sort_by_constraints_prioritizes_exclusions(self) -> None:
+        """Test that students with exclusions are sorted before non-exclusion students."""
+        student_with_exclusion = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],
+        )
+        student_no_constraints = Student(
+            first_name="Charlie",
+            last_name="Clark",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        student_with_cluster = Student(
+            first_name="David",
+            last_name="Davis",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            cluster=Cluster.AC,
+        )
+
+        students = [student_no_constraints, student_with_cluster, student_with_exclusion]
+        sorted_students = _sort_by_constraints(students)
+
+        # Order should be: exclusion (1), cluster (2), no constraints (3)
+        assert sorted_students[0] == student_with_exclusion
+        assert sorted_students[1] == student_with_cluster
+        assert sorted_students[2] == student_no_constraints
+
+    def test_greedy_assignment_respects_exclusions(self) -> None:
+        """Test that greedy assignment keeps excluded students in different classrooms."""
+        teacher1 = Teacher(name="Teacher A", clusters=[])
+        teacher2 = Teacher(name="Teacher B", clusters=[])
+
+        student_a = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],
+        )
+        student_b = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+
+        grade_list = GradeList(
+            teachers=[teacher1, teacher2],
+            students=[student_a, student_b],
+            classes=[
+                Classroom(teacher=teacher1, students=[]),
+                Classroom(teacher=teacher2, students=[]),
+            ],
+        )
+
+        result = greedy_assign_students(grade_list)
+
+        # Find where Alice and Bob ended up
+        alice_class = None
+        bob_class = None
+        for classroom in result.classes:
+            for student in classroom.students:
+                if student.first_name == "Alice":
+                    alice_class = classroom.teacher.name
+                elif student.first_name == "Bob":
+                    bob_class = classroom.teacher.name
+
+        # They should be in different classrooms
+        assert alice_class != bob_class
+        assert alice_class is not None
+        assert bob_class is not None
+
+    def test_greedy_assignment_raises_on_impossible_exclusions(self) -> None:
+        """Test that greedy assignment raises error when exclusions can't be satisfied."""
+        teacher1 = Teacher(name="Teacher A", clusters=[])
+
+        student_a = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown", "Charlie Clark"],
+        )
+        student_b = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        student_c = Student(
+            first_name="Charlie",
+            last_name="Clark",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+
+        # Only 1 classroom, but Alice excludes both others - impossible!
+        grade_list = GradeList(
+            teachers=[teacher1],
+            students=[student_a, student_b, student_c],
+            classes=[Classroom(teacher=teacher1, students=[])],
+        )
+
+        with pytest.raises(ImpossibleConstraintsError) as exc_info:
+            greedy_assign_students(grade_list)
+
+        # Error mentions which student couldn't be placed due to conflicts
+        # Alice is placed first (she has exclusions), then Bob/Charlie can't join her
+        error_msg = str(exc_info.value)
+        assert "Cannot satisfy constraints" in error_msg
+        # The error should mention Alice's exclusions causing the issue
+        assert "Alice Anderson" in error_msg or "Bob Brown" in error_msg
+
+    def test_greedy_assignment_multiple_exclusions_respected(self) -> None:
+        """Test that multiple exclusions are all respected."""
+        teacher1 = Teacher(name="Teacher A", clusters=[])
+        teacher2 = Teacher(name="Teacher B", clusters=[])
+        teacher3 = Teacher(name="Teacher C", clusters=[])
+
+        # Alice excludes Bob and Charlie
+        student_a = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown", "Charlie Clark"],
+        )
+        student_b = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+        student_c = Student(
+            first_name="Charlie",
+            last_name="Clark",
+            gender=Gender.MALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+        )
+
+        grade_list = GradeList(
+            teachers=[teacher1, teacher2, teacher3],
+            students=[student_a, student_b, student_c],
+            classes=[
+                Classroom(teacher=teacher1, students=[]),
+                Classroom(teacher=teacher2, students=[]),
+                Classroom(teacher=teacher3, students=[]),
+            ],
+        )
+
+        result = greedy_assign_students(grade_list)
+
+        # Find Alice's classroom
+        alice_classroom = None
+        for classroom in result.classes:
+            for student in classroom.students:
+                if student.first_name == "Alice":
+                    alice_classroom = classroom
+                    break
+
+        # Neither Bob nor Charlie should be in Alice's classroom
+        class_student_names = {f"{s.first_name} {s.last_name}" for s in alice_classroom.students}
+        assert "Bob Brown" not in class_student_names
+        assert "Charlie Clark" not in class_student_names

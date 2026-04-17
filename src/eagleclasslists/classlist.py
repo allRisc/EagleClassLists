@@ -279,7 +279,9 @@ class GradeList(pydantic.BaseModel):
                         f"  • Gender must be: Male, Female, M, or F\n"
                         f"  • Math/ELA/Behavior must be: High, Medium, Low, H, M, or L\n"
                         f"  • Cluster must be: AC, GEM, EL, or blank\n"
-                        f"  • Resource and Speech must be: TRUE/FALSE, Yes/No, or 1/0",
+                        f"  • Resource and Speech must be: TRUE/FALSE, Yes/No, or 1/0\n"
+                        f"  • Exclusions: comma-separated names "
+                        f"(e.g., 'Alice Smith, Bob Jones')",
                     ) from e
 
         except pd.errors.EmptyDataError as e:
@@ -392,6 +394,54 @@ class Student(pydantic.BaseModel):
 
     speech: bool = pydantic.Field(alias="Speech", default=False)
     """Whether the student receives speech services."""
+
+    exclusions: list[str] = pydantic.Field(alias="Exclusions", default_factory=list)
+    """List of student names (FirstName LastName) this student cannot be with."""
+
+    @pydantic.field_validator("exclusions", mode="before")
+    @classmethod
+    def parse_exclusions(cls, val: Any) -> Any:
+        """Parse exclusions from various input formats.
+
+        Accepts:
+        - List of strings directly
+        - Comma-separated string from Excel
+        - Empty string or None (returns empty list)
+
+        Args:
+            val: The value to parse as exclusions.
+
+        Returns:
+            The parsed list of exclusion names or the original value for further processing.
+        """
+        if val is None:
+            return []
+
+        if isinstance(val, list):
+            return val
+
+        if isinstance(val, str):
+            cleaned = val.strip()
+            if cleaned == "":
+                return []
+            # Split by comma and strip whitespace from each name
+            return [name.strip() for name in cleaned.split(",") if name.strip()]
+
+        return val
+
+    @pydantic.field_serializer("exclusions", mode="plain")
+    def serialize_exclusions(self, val: list[str]) -> str:
+        """Serialize exclusions list to comma-separated string for Excel export.
+
+        Args:
+            val: The list of exclusion names.
+
+        Returns:
+            Comma-separated string of names, or empty string if list is empty.
+        """
+        if not val:
+            return ""
+        return ", ".join(val)
 
     @pydantic.model_validator(mode="before")
     @classmethod

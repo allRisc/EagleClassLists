@@ -455,3 +455,149 @@ class TestExcelImportErrors:
         assert error.message == "Test message"
         assert error.details is None
         assert str(error) == "Test message"
+
+
+class TestExclusionsExcel:
+    """Test suite for exclusions field in Excel save/load."""
+
+    def test_student_with_single_exclusion(self, tmp_path: Path) -> None:
+        """Test student with a single exclusion is preserved."""
+        teacher = Teacher(name="Test Teacher", clusters=[])
+        student_with_exclusion = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown"],
+        )
+        other_student = Student(
+            first_name="Bob",
+            last_name="Brown",
+            gender=Gender.MALE,
+            math=Math.MEDIUM,
+            ela=ELA.MEDIUM,
+            behavior=Behavior.MEDIUM,
+        )
+        classroom = Classroom(teacher=teacher, students=[student_with_exclusion, other_student])
+        grade_list = GradeList(
+            classes=[classroom],
+            teachers=[teacher],
+            students=[student_with_exclusion, other_student],
+        )
+
+        excel_file = tmp_path / "single_exclusion.xlsx"
+        grade_list.save_to_excel(excel_file)
+        loaded = GradeList.from_excel(excel_file)
+
+        loaded_student = next(
+            s for s in loaded.students if s.first_name == "Alice" and s.last_name == "Anderson"
+        )
+        assert len(loaded_student.exclusions) == 1
+        assert "Bob Brown" in loaded_student.exclusions
+
+    def test_student_with_multiple_exclusions(self, tmp_path: Path) -> None:
+        """Test student with multiple exclusions are all preserved."""
+        teacher = Teacher(name="Test Teacher", clusters=[])
+        student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["Bob Brown", "Charlie Clark", "David Davis"],
+        )
+        classroom = Classroom(teacher=teacher, students=[student])
+        grade_list = GradeList(classes=[classroom], teachers=[teacher], students=[student])
+
+        excel_file = tmp_path / "multiple_exclusions.xlsx"
+        grade_list.save_to_excel(excel_file)
+        loaded = GradeList.from_excel(excel_file)
+
+        loaded_student = loaded.students[0]
+        assert len(loaded_student.exclusions) == 3
+        assert "Bob Brown" in loaded_student.exclusions
+        assert "Charlie Clark" in loaded_student.exclusions
+        assert "David Davis" in loaded_student.exclusions
+
+    def test_student_without_exclusions(self, tmp_path: Path) -> None:
+        """Test student with no exclusions (empty list)."""
+        teacher = Teacher(name="Test Teacher", clusters=[])
+        student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=[],
+        )
+        classroom = Classroom(teacher=teacher, students=[student])
+        grade_list = GradeList(classes=[classroom], teachers=[teacher], students=[student])
+
+        excel_file = tmp_path / "no_exclusions.xlsx"
+        grade_list.save_to_excel(excel_file)
+        loaded = GradeList.from_excel(excel_file)
+
+        loaded_student = loaded.students[0]
+        assert len(loaded_student.exclusions) == 0
+
+    def test_exclusions_with_special_characters(self, tmp_path: Path) -> None:
+        """Test exclusions with special characters in names."""
+        teacher = Teacher(name="Test Teacher", clusters=[])
+        student = Student(
+            first_name="Alice",
+            last_name="Anderson",
+            gender=Gender.FEMALE,
+            math=Math.HIGH,
+            ela=ELA.HIGH,
+            behavior=Behavior.HIGH,
+            exclusions=["José García-Muñoz", "O'Connor Smith"],
+        )
+        classroom = Classroom(teacher=teacher, students=[student])
+        grade_list = GradeList(classes=[classroom], teachers=[teacher], students=[student])
+
+        excel_file = tmp_path / "special_chars_exclusions.xlsx"
+        grade_list.save_to_excel(excel_file)
+        loaded = GradeList.from_excel(excel_file)
+
+        loaded_student = loaded.students[0]
+        assert len(loaded_student.exclusions) == 2
+        assert "José García-Muñoz" in loaded_student.exclusions
+        assert "O'Connor Smith" in loaded_student.exclusions
+
+    def test_exclusions_parsed_from_comma_string(self, tmp_path: Path) -> None:
+        """Test that exclusions are correctly parsed from comma-separated Excel string."""
+        import pandas as pd
+
+        # Create Excel with comma-separated exclusions
+        excel_file = tmp_path / "exclusions_string.xlsx"
+        with pd.ExcelWriter(excel_file) as writer:
+            teachers_df = pd.DataFrame({"Name": ["Test Teacher"], "Clusters": [""]})
+            teachers_df.to_excel(writer, sheet_name="Teachers", index=False)
+            students_df = pd.DataFrame(
+                {
+                    "First Name": ["Alice", "Bob"],
+                    "Last Name": ["Anderson", "Brown"],
+                    "Gender": ["Female", "Male"],
+                    "Math": ["High", "Medium"],
+                    "ELA": ["High", "Medium"],
+                    "Behavior": ["High", "Medium"],
+                    "Exclusions": ["Bob Brown, Charlie Clark", ""],
+                }
+            )
+            students_df.to_excel(writer, sheet_name="Students", index=False)
+
+        loaded = GradeList.from_excel(excel_file)
+
+        alice = next(
+            s for s in loaded.students if s.first_name == "Alice" and s.last_name == "Anderson"
+        )
+        assert len(alice.exclusions) == 2
+        assert "Bob Brown" in alice.exclusions
+        assert "Charlie Clark" in alice.exclusions
+
+        bob = next(s for s in loaded.students if s.first_name == "Bob" and s.last_name == "Brown")
+        assert len(bob.exclusions) == 0
