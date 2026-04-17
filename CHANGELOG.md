@@ -6,6 +6,22 @@ All notable changes to ``EagleClassLists`` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+0.3.0
+----------------------------------------------------------------------
+
+### Added
+- **Simulated Annealing optimization** for automatic grade list optimization
+  - New ``fitness`` module for computing fairness scores (0-1 scale)
+  - New ``simulated_annealing`` module for smart optimization
+  - ``FitnessWeights`` dataclass with configurable weights for gender, academics,
+    behavior, resource, speech, and class_size metrics
+  - **Cluster as hard constraint**: cluster correctness is binary (1.0 if all
+    correct, 0.0 if any violation) and enforced by the algorithm, not weights
+  - Smart neighbor generation that **never proposes invalid cluster moves**
+  - ``optimize_grade_list()`` function for single optimization run
+  - ``optimize_multiple_times()`` function for multiple runs to find best result
+  - Progress callback support for real-time optimization feedback
+
 0.2.0
 ----------------------------------------------------------------------
 
