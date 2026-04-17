@@ -64,6 +64,65 @@ def _get_orphaned_exclusions(student: Student, all_students: list[Student]) -> l
     return [ex for ex in student.exclusions if ex not in existing_names]
 
 
+def _run_sanity_checks(grade_list: GradeList) -> dict[str, list[str]]:
+    """Run sanity checks on all students in the grade list.
+
+    Args:
+        grade_list: The grade list containing students to check.
+
+    Returns:
+        Dictionary mapping check names to lists of issues found.
+        Empty lists indicate no issues for that check.
+    """
+    issues: dict[str, list[str]] = {
+        "duplicate_names": [],
+        "orphaned_exclusions": [],
+        "invalid_teachers": [],
+        "cluster_teacher_mismatch": [],
+    }
+
+    # Check for duplicate student names
+    name_counts: dict[str, list[str]] = {}
+    for student in grade_list.students:
+        full_name = f"{student.first_name} {student.last_name}"
+        if full_name not in name_counts:
+            name_counts[full_name] = []
+        name_counts[full_name].append(full_name)
+
+    for name, occurrences in name_counts.items():
+        if len(occurrences) > 1:
+            issues["duplicate_names"].append(f"'{name}' appears {len(occurrences)} times")
+
+    # Check for orphaned exclusions and cluster-teacher compatibility
+    valid_teachers = {t.name for t in grade_list.teachers}
+    teacher_clusters: dict[str, list[Cluster]] = {t.name: t.clusters for t in grade_list.teachers}
+
+    for student in grade_list.students:
+        full_name = f"{student.first_name} {student.last_name}"
+
+        # Check for orphaned exclusions
+        orphaned = _get_orphaned_exclusions(student, grade_list.students)
+        if orphaned:
+            issues["orphaned_exclusions"].append(f"{full_name}: {', '.join(orphaned)}")
+
+        # Check for valid teacher assignments
+        if student.teacher and student.teacher not in valid_teachers:
+            issues["invalid_teachers"].append(
+                f"{full_name}: '{student.teacher}' is not a valid teacher"
+            )
+
+        # Check cluster-teacher compatibility
+        if student.cluster and student.teacher:
+            teacher_cluster_list = teacher_clusters.get(student.teacher, [])
+            if student.cluster not in teacher_cluster_list:
+                issues["cluster_teacher_mismatch"].append(
+                    f"{full_name}: assigned to '{student.teacher}' "
+                    f"but requires '{student.cluster.value}' cluster qualification"
+                )
+
+    return issues
+
+
 def render_students_page() -> None:
     """Render the students management page."""
     st.header("Students")
@@ -178,6 +237,45 @@ def render_students_page() -> None:
                         grade_list.students.append(new_student)
                     st.success(f"Added student: {first_name} {last_name}")
                     st.rerun()
+
+    # Sanity check button
+    if st.button("Run Sanity Checks", type="secondary", help="Check for common data issues"):
+        issues = _run_sanity_checks(grade_list)
+        total_issues = sum(len(v) for v in issues.values())
+
+        if total_issues == 0:
+            st.success("All sanity checks passed! No issues found.")
+        else:
+            st.error(f"Found {total_issues} issue(s):")
+
+            if issues["duplicate_names"]:
+                with st.expander(f"Duplicate Names ({len(issues['duplicate_names'])})"):
+                    for issue in issues["duplicate_names"]:
+                        st.write(f"- {issue}")
+
+            if issues["orphaned_exclusions"]:
+                with st.expander(
+                    f"Orphaned Exclusions ({len(issues['orphaned_exclusions'])})",
+                    expanded=True,
+                ):
+                    for issue in issues["orphaned_exclusions"]:
+                        st.write(f"- {issue}")
+
+            if issues["invalid_teachers"]:
+                with st.expander(
+                    f"Invalid Teacher Assignments ({len(issues['invalid_teachers'])})",
+                    expanded=True,
+                ):
+                    for issue in issues["invalid_teachers"]:
+                        st.write(f"- {issue}")
+
+            if issues["cluster_teacher_mismatch"]:
+                with st.expander(
+                    f"Cluster-Teacher Mismatches ({len(issues['cluster_teacher_mismatch'])})",
+                    expanded=True,
+                ):
+                    for issue in issues["cluster_teacher_mismatch"]:
+                        st.write(f"- {issue}")
 
     # Display existing students
     st.subheader("Existing Students")
