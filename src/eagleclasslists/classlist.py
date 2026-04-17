@@ -292,6 +292,49 @@ class Student(pydantic.BaseModel):
     speech: bool = pydantic.Field(alias="Speech", default=False)
     """Whether the student receives speech services."""
 
+    @pydantic.field_validator("resource", "speech", mode="before")
+    @classmethod
+    def parse_boolean(cls, val: Any) -> bool:
+        """Parse boolean values from various input formats.
+
+        Accepts:
+        - Boolean values: True, False
+        - Case-insensitive strings: "true", "false", "yes", "no", "y", "n"
+        - Numeric strings: "1", "0"
+        - Empty/whitespace strings: treated as False
+        - None: treated as False
+
+        Args:
+            val: The value to parse as a boolean.
+
+        Returns:
+            The parsed boolean value.
+
+        Raises:
+            ValueError: If the value cannot be parsed as a boolean.
+        """
+        if isinstance(val, bool):
+            return val
+
+        if val is None:
+            return False
+
+        if isinstance(val, str):
+            # Strip whitespace and convert to lowercase
+            cleaned = val.strip().lower()
+
+            # Empty string is treated as False
+            if cleaned == "":
+                return False
+
+            # Accept various true/false representations
+            if cleaned in ("true", "yes", "y", "1"):
+                return True
+            if cleaned in ("false", "no", "n", "0"):
+                return False
+
+        raise ValueError(f"Cannot parse {val!r} as a boolean")
+
 
 def _attr_to_save_str(obj: Any, attr: str) -> str:
     if attr != "" and not hasattr(obj, attr):
