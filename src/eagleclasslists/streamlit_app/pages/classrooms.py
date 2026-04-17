@@ -506,7 +506,8 @@ def _render_optimization_section(grade_list: GradeList) -> None:
 
         with weight_col1:
             gender_weight = st.slider("Gender", 0.0, 5.0, 1.0, 0.5)
-            academics_weight = st.slider("Academics", 0.0, 5.0, 1.0, 0.5)
+            math_weight = st.slider("Math", 0.0, 5.0, 0.5, 0.5)
+            ela_weight = st.slider("ELA", 0.0, 5.0, 0.5, 0.5)
 
         with weight_col2:
             behavior_weight = st.slider("Behavior", 0.0, 5.0, 1.0, 0.5)
@@ -544,7 +545,8 @@ def _render_optimization_section(grade_list: GradeList) -> None:
     ):
         weights = FitnessWeights(
             gender=gender_weight,
-            academics=academics_weight,
+            math=math_weight,
+            ela=ela_weight,
             behavior=behavior_weight,
             resource=resource_weight,
             speech=speech_weight,
@@ -596,10 +598,14 @@ def _render_fitness_details(grade_list: GradeList) -> None:
             help="Measures how evenly male and female students are distributed across classrooms.",
         )
         st.metric(
-            "📚 Academic Balance",
-            f"{breakdown['academics']:.4f}",
-            help="Measures how evenly academic performance levels (High/Medium/Low) "
-            "are distributed.",
+            "📐 Math Balance",
+            f"{breakdown['math']:.4f}",
+            help="Measures how evenly math performance levels (High/Medium/Low) are distributed.",
+        )
+        st.metric(
+            "📖 ELA Balance",
+            f"{breakdown['ela']:.4f}",
+            help="Measures how evenly ELA performance levels (High/Medium/Low) are distributed.",
         )
         st.metric(
             "🎓 Behavior Balance",
@@ -632,7 +638,7 @@ def _render_fitness_details(grade_list: GradeList) -> None:
     st.markdown("""
     ### How Scores Are Calculated
 
-    **Balance Metrics (Gender, Academics, Behavior, Resource, Speech):**
+    **Balance Metrics (Gender, Math, ELA, Behavior, Resource, Speech):**
     - Each metric measures how evenly the attribute is distributed across classrooms
     - Uses exponential decay: `score = exp(-average_deviation)`
     - A deviation of 0 (perfect balance) gives a score of 1.0
