@@ -17,6 +17,14 @@ Unreleased
   assignment operations.
 
 ### Added
+- **Greedy assignment algorithm** - New ``greedy_assignment`` module for sequential student assignment
+  - ``greedy_assign_students()`` function assigns students one-by-one to maximize fitness
+  - Always assigns to the classroom that yields the highest overall fitness score
+  - Respects hard constraints: cluster assignments and teacher requests
+  - Students with constraints (teacher requests, then clusters) are assigned first
+  - Supports custom ``FitnessWeights`` for controlling assignment priorities
+  - Progress callback support for real-time assignment feedback
+  - Returns a new ``GradeList`` with all students assigned (original unchanged)
 - **Improved Excel error reporting** - Better error messages when loading poorly formatted Excel files
   - New ``ExcelImportError`` exception with user-friendly messages and detailed suggestions
   - Helpful error messages for missing sheets, invalid data, and validation failures
