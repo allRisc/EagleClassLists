@@ -32,6 +32,7 @@ from eagleclasslists.classlist import (
     GradeList,
     Math,
     Student,
+    Teacher,
 )
 
 
@@ -103,6 +104,15 @@ def render_students_page() -> None:
                 resource = st.checkbox("Resource Services", key="new_student_resource")
                 speech = st.checkbox("Speech Services", key="new_student_speech")
 
+                # Teacher assignment (optional)
+                teacher_options: list[Teacher | None] = [None, *grade_list.teachers]
+                selected_teacher = st.selectbox(
+                    "Teacher (optional)",
+                    options=teacher_options,
+                    format_func=lambda x: x.name if x else "None",
+                    key="new_student_teacher",
+                )
+
             submitted = st.form_submit_button("Add Student")
             if submitted:
                 if not first_name.strip():
@@ -125,6 +135,7 @@ def render_students_page() -> None:
                             cluster=cluster if cluster else None,
                             resource=resource,
                             speech=speech,
+                            teacher=selected_teacher.name if selected_teacher else None,
                         )
                         grade_list.students.append(new_student)
                     st.success(f"Added student: {first_name} {last_name}")
@@ -155,6 +166,8 @@ def render_students_page() -> None:
                     attrs.append("🔧 Resource")
                 if student.speech:
                     attrs.append("🗣️ Speech")
+                if student.teacher:
+                    attrs.append(f"👨‍🏫 {student.teacher}")
                 st.write(" • ".join(attrs))
 
             with col3:
@@ -234,6 +247,26 @@ def render_students_page() -> None:
                             key=f"edit_speech_{idx}",
                         )
 
+                        # Teacher assignment (optional)
+                        edit_teacher_options: list[Teacher | None] = [
+                            None,
+                            *grade_list.teachers,
+                        ]
+                        # Find current teacher index
+                        current_teacher_idx = 0
+                        if student.teacher:
+                            for i, t in enumerate(edit_teacher_options):
+                                if t and t.name == student.teacher:
+                                    current_teacher_idx = i
+                                    break
+                        new_teacher = st.selectbox(
+                            "Teacher",
+                            options=edit_teacher_options,
+                            index=current_teacher_idx,
+                            format_func=lambda x: x.name if x else "None",
+                            key=f"edit_teacher_{idx}",
+                        )
+
                     btn_col1, btn_col2 = st.columns(2)
                     with btn_col1:
                         if st.form_submit_button("Save Changes"):
@@ -247,6 +280,7 @@ def render_students_page() -> None:
                             student.cluster = new_cluster if new_cluster else None
                             student.resource = new_resource
                             student.speech = new_speech
+                            student.teacher = new_teacher.name if new_teacher else None
 
                             # Update references in classrooms
                             for classroom in grade_list.classes:
@@ -254,6 +288,7 @@ def render_students_page() -> None:
                                     if s.first_name == old_first and s.last_name == old_last:
                                         s.first_name = new_first.strip()
                                         s.last_name = new_last.strip()
+                                        s.teacher = new_teacher.name if new_teacher else None
 
                             st.session_state[f"editing_student_{idx}"] = False
                             st.success("Student updated!")
