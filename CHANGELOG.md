@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Unreleased
 ----------------------------------------------------------------------
 
+### Fixed
+- **Stopped setting student teacher attribute during auto-balance** - The ``teacher``
+  field on students is now only set when creating/editing students in the Streamlit
+  UI or importing from Excel. Previously, the teacher attribute was being incorrectly
+  assigned when students were assigned to classrooms via auto-balance or manual
+  assignment operations.
+
 ### Added
 - **Improved Excel error reporting** - Better error messages when loading poorly formatted Excel files
   - New ``ExcelImportError`` exception with user-friendly messages and detailed suggestions
