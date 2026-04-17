@@ -183,8 +183,8 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
     all_students = []
 
     for classroom in grade_list.classes:
-        # Copy students in this classroom
-        copied_students = [copy.copy(s) for s in classroom.students]
+        # Copy students in this classroom using Pydantic's model_copy
+        copied_students = [s.model_copy() for s in classroom.students]
         all_students.extend(copied_students)
 
         # Create new classroom with copied students
@@ -197,7 +197,7 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
     }
     for student in grade_list.students:
         if (student.first_name, student.last_name) not in assigned_student_ids:
-            all_students.append(copy.copy(student))
+            all_students.append(student.model_copy())
 
     return GradeList(classes=new_classes, teachers=teachers, students=all_students)
 

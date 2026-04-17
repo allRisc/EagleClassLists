@@ -10,6 +10,10 @@ Unreleased
 ----------------------------------------------------------------------
 
 ### Fixed
+- **Auto-balance now works with unassigned students** - Fixed bug where "Auto-Balance
+  Classes" button failed when no students had been manually assigned yet. The greedy
+  algorithm now creates empty classrooms for all teachers before assigning students,
+  ensuring it can properly distribute students to optimize fitness.
 - **Stopped setting student teacher attribute during auto-balance** - The ``teacher``
   field on students is now only set when creating/editing students in the Streamlit
   UI or importing from Excel. Previously, the teacher attribute was being incorrectly
@@ -17,6 +21,10 @@ Unreleased
   assignment operations.
 
 ### Added
+- **Streamlit auto-balance now uses greedy algorithm** - The "Auto-Balance Classes" button
+  in the Classroom Management page now uses the greedy assignment algorithm instead of
+  simple even distribution. This provides intelligent student assignment that maximizes
+  fitness by considering gender, academic performance, behavior, and services balance.
 - **Greedy assignment algorithm** - New ``greedy_assignment`` module for sequential student assignment
   - ``greedy_assign_students()`` function assigns students one-by-one to maximize fitness
   - Always assigns to the classroom that yields the highest overall fitness score

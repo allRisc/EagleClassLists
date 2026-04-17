@@ -26,6 +26,7 @@ import streamlit as st
 
 from eagleclasslists.classlist import Classroom, GradeList, Student, Teacher
 from eagleclasslists.fitness import FitnessWeights, calculate_fitness, get_fitness_breakdown
+from eagleclasslists.greedy_assignment import greedy_assign_students
 from eagleclasslists.simulated_annealing import AnnealingConfig, optimize_grade_list
 
 
@@ -401,26 +402,52 @@ def render_classrooms_page() -> None:
                 st.info("No students to unassign")
 
     with bulk_col3:
+        # Auto-fill with greedy algorithm
         if st.button("Auto-Balance Classes", use_container_width=True):
-            # Simple auto-balance: distribute unassigned students evenly
             if unassigned and grade_list.teachers:
-                teacher_names = [t.name for t in grade_list.teachers]
-                students_per_teacher = len(unassigned) // len(teacher_names)
-                extra = len(unassigned) % len(teacher_names)
+                # Configure weights for greedy assignment
+                weights = FitnessWeights(
+                    gender=1.0,
+                    math=0.5,
+                    ela=0.5,
+                    behavior=1.0,
+                    resource=0.5,
+                    speech=0.5,
+                    class_size=1.0,
+                )
 
-                student_idx = 0
-                for t_idx, teacher_name in enumerate(teacher_names):
-                    count = students_per_teacher + (1 if t_idx < extra else 0)
-                    for _ in range(count):
-                        if student_idx < len(unassigned):
-                            student = unassigned[student_idx]
-                            _add_student_to_teacher(
-                                grade_list, teacher_name, student.first_name, student.last_name
-                            )
-                            student_idx += 1
+                # Run greedy assignment with progress feedback
+                progress_bar = st.progress(0.0)
+                status_text = st.empty()
 
-                st.success(f"Auto-assigned {len(unassigned)} students evenly")
+                def progress_callback(idx: int, total: int, fitness: float) -> None:
+                    progress = idx / total
+                    progress_bar.progress(progress)
+                    status_text.text(f"Assigning student {idx}/{total}... (fitness: {fitness:.4f})")
+
+                # Use greedy algorithm to assign students
+                assigned_grade_list = greedy_assign_students(
+                    grade_list,
+                    students=unassigned,
+                    weights=weights,
+                    progress_callback=progress_callback,
+                )
+
+                # Update the session state grade list
+                st.session_state.grade_list = assigned_grade_list
+
+                progress_bar.empty()
+                status_text.empty()
+
+                final_fitness = calculate_fitness(assigned_grade_list, weights)
+                st.success(
+                    f"Auto-assigned {len(unassigned)} students with fitness {final_fitness:.4f}"
+                )
                 st.rerun()
+            elif not unassigned:
+                st.info("No unassigned students to auto-balance")
+            else:
+                st.warning("No teachers available for assignment")
 
     with bulk_col4:
         # Show summary stats

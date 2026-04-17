@@ -37,7 +37,6 @@ Example:
 
 from __future__ import annotations
 
-import copy
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -104,7 +103,7 @@ def greedy_assign_students(
             continue
 
         # Add student to the best classroom
-        result.classes[best_classroom_idx].students.append(copy.copy(student))
+        result.classes[best_classroom_idx].students.append(student.model_copy())
 
         # Call progress callback if provided
         if progress_callback is not None:
@@ -183,12 +182,12 @@ def _find_best_classroom(
             continue
 
         # Temporarily add student to this classroom
-        classroom.students.append(copy.copy(student))
+        classroom.students.append(student.model_copy())
 
         # Calculate fitness with this assignment
         fitness = calculate_fitness(grade_list, weights)
 
-        # Remove the student (we'll add them permanently to the best one)
+        # Remove the temporarily added student
         classroom.students.pop()
 
         # Track the best classroom
@@ -246,14 +245,23 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
     new_classes = []
     all_students = []
 
+    # First, copy existing classrooms
     for classroom in grade_list.classes:
-        # Copy students in this classroom
-        copied_students = [copy.copy(s) for s in classroom.students]
+        # Copy students in this classroom using Pydantic's model_copy
+        copied_students = [s.model_copy() for s in classroom.students]
         all_students.extend(copied_students)
 
         # Create new classroom with copied students
         new_class = Classroom(teacher=classroom.teacher, students=copied_students)
         new_classes.append(new_class)
+
+    # CRITICAL: Create empty classrooms for teachers that don't have one yet
+    # This happens when no students have been assigned to a teacher
+    teachers_with_classrooms = {cls.teacher.name for cls in new_classes}
+    for teacher in teachers:
+        if teacher.name not in teachers_with_classrooms:
+            new_class = Classroom(teacher=teacher, students=[])
+            new_classes.append(new_class)
 
     # Also copy students not in any classroom
     assigned_student_ids = {
@@ -261,6 +269,6 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
     }
     for student in grade_list.students:
         if (student.first_name, student.last_name) not in assigned_student_ids:
-            all_students.append(copy.copy(student))
+            all_students.append(student.model_copy())
 
     return GradeList(classes=new_classes, teachers=teachers, students=all_students)

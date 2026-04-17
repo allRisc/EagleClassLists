@@ -26,7 +26,6 @@ attributes.
 from __future__ import annotations
 
 import enum
-import pprint
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
@@ -198,7 +197,6 @@ class GradeList(pydantic.BaseModel):
             filepath: Path to the Excel file to create, or a file-like object
                 to write to.
         """
-        pprint.pprint(self.model_dump())
         with pd.ExcelWriter(filepath) as ew:
             for sheet in self.model_dump():
                 self._list_attr_to_sheet(ew, attr=sheet)
@@ -234,8 +232,6 @@ class GradeList(pydantic.BaseModel):
                 required_sheets = {"Teachers", "Students"}
                 available_sheets: set[str] = {str(s) for s in ef.sheet_names}
                 missing_sheets = required_sheets - available_sheets
-
-                print(available_sheets)
 
                 if missing_sheets:
                     sheet_list = ", ".join(f'"{s}"' for s in sorted(missing_sheets))
