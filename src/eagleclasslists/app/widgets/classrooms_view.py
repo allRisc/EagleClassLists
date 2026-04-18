@@ -16,23 +16,28 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ####################################################################################################
 
-from PySide6.QtWidgets import QApplication
+from __future__ import annotations
+
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from eagleclasslists.app.grade_list_model import GradeListModel
-from eagleclasslists.app.main_window import MainWindow
-from eagleclasslists.classlist import GradeList
 
 
-def main():
-    app = QApplication([])
-    # TODO: Replace with real data loading (e.g. from Excel or user prompt)
-    grade_list = GradeList(Teachers=[], Students=[])
-    model = GradeListModel(grade_list)
-    window = MainWindow(model)
+class ClassroomsView(QWidget):
+    """View for managing classrooms."""
 
-    window.show()
-    app.exec()
+    def __init__(self, model: GradeListModel) -> None:
+        super().__init__()
+        self.model = model
+        self._setup_ui()
+        model.changed.connect(self._refresh)
 
+    def _setup_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        self.label = QLabel("Classrooms View - Manage classroom information")
+        layout.addWidget(self.label)
 
-if __name__ == "__main__":
-    main()
+    def _refresh(self) -> None:
+        classes = self.model.grade_list.classes
+        count = len(classes)
+        self.label.setText(f"Classrooms View - {count} classroom(s)")

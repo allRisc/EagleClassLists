@@ -612,6 +612,53 @@ class Student(pydantic.BaseModel):
 
         raise ValueError(f"Cannot parse {val!r} as a boolean")
 
+    def summary_string(self, all_students: list[Student] | None = None) -> str:
+        """Generate a summary string for display in UI components.
+
+        Args:
+            all_students: Optional list of all students for orphaned exclusion detection.
+
+        Returns:
+            Formatted summary string with student attributes.
+        """
+        attrs = [
+            self.gender.value,
+            f"🔢 {self.math.value}",
+            f"📚 {self.ela.value}",
+            f"😊 {self.behavior.value}",
+        ]
+        if self.cluster:
+            attrs.append(f"🎯 {self.cluster.value}")
+        if self.resource:
+            attrs.append("🔧 Resource")
+        if self.speech:
+            attrs.append("🗣️ Speech")
+        if self.teacher:
+            attrs.append(f"👨‍🏫 {self.teacher}")
+        if self.exclusions:
+            if all_students is not None:
+                valid_exclusions = self._get_valid_exclusions(all_students)
+                orphaned_count = len(self.exclusions) - len(valid_exclusions)
+                if orphaned_count > 0:
+                    attrs.append(f"🚫 {len(self.exclusions)} ({orphaned_count} orphaned)")
+                else:
+                    attrs.append(f"🚫 {len(self.exclusions)}")
+            else:
+                attrs.append(f"🚫 {len(self.exclusions)}")
+        return " • ".join(attrs)
+
+    def _get_valid_exclusions(self, all_students: list[Student]) -> list[str]:
+        """Get list of valid exclusions (students that actually exist).
+
+        Args:
+            all_students: List of all students in the grade.
+
+        Returns:
+            List of exclusion names that correspond to existing students.
+        """
+        existing_names = {f"{s.first_name} {s.last_name}" for s in all_students}
+        return [ex for ex in self.exclusions if ex in existing_names]
+
 
 def _attr_to_save_str(obj: Any, attr: str) -> str:
     if attr != "" and not hasattr(obj, attr):

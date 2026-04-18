@@ -16,23 +16,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ####################################################################################################
 
-from PySide6.QtWidgets import QApplication
+from .classrooms_view import ClassroomsView
+from .students_view import StudentsView
+from .teachers_view import TeachersView
 
-from eagleclasslists.app.grade_list_model import GradeListModel
-from eagleclasslists.app.main_window import MainWindow
-from eagleclasslists.classlist import GradeList
-
-
-def main():
-    app = QApplication([])
-    # TODO: Replace with real data loading (e.g. from Excel or user prompt)
-    grade_list = GradeList(Teachers=[], Students=[])
-    model = GradeListModel(grade_list)
-    window = MainWindow(model)
-
-    window.show()
-    app.exec()
-
-
-if __name__ == "__main__":
-    main()
+__all__ = ["ClassroomsView", "StudentsView", "TeachersView"]

@@ -49,13 +49,13 @@ dependencies = [
     "openpyxl>=3.1.0",
     "pydantic>=2.12.5",
     "streamlit>=1.55.0",
+    "pyside6>=6.11.0",
 ]
 
 [dependency-groups]
 dev = [
     "pandas-stubs>=3.0.0.260204",
     "pyinstaller>=6.19.0",
-    "pyside6>=6.11.0",
     "ruff>=0.13.0",
     "streamlit-desktop-app>=0.3.4",
     "tox>=4.25.0",
@@ -76,6 +76,7 @@ tests=[
 ]
 typing=[
     "mypy>=1.4.1",
+    "pyside6-stubs>=6.7.0",
 ]
 
 [project.scripts]

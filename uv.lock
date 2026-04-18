@@ -253,6 +253,7 @@ source = { editable = "." }
 dependencies = [
     { name = "openpyxl" },
     { name = "pydantic" },
+    { name = "pyside6" },
     { name = "streamlit" },
 ]
 
@@ -260,7 +261,6 @@ dependencies = [
 dev = [
     { name = "pandas-stubs" },
     { name = "pyinstaller" },
-    { name = "pyside6" },
     { name = "ruff" },
     { name = "streamlit-desktop-app" },
     { name = "tox" },
@@ -281,12 +281,14 @@ tests = [
 ]
 typing = [
     { name = "mypy" },
+    { name = "pyside6-stubs" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "openpyxl", specifier = ">=3.1.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pyside6", specifier = ">=6.11.0" },
     { name = "streamlit", specifier = ">=1.55.0" },
 ]
 
@@ -294,7 +296,6 @@ requires-dist = [
 dev = [
     { name = "pandas-stubs", specifier = ">=3.0.0.260204" },
     { name = "pyinstaller", specifier = ">=6.19.0" },
-    { name = "pyside6", specifier = ">=6.11.0" },
     { name = "ruff", specifier = ">=0.13.0" },
     { name = "streamlit-desktop-app", specifier = ">=0.3.4" },
     { name = "tox", specifier = ">=4.25.0" },
@@ -313,7 +314,10 @@ tests = [
     { name = "pytest", specifier = ">=7.4.4" },
     { name = "pytest-mock", specifier = ">=3.15.1" },
 ]
-typing = [{ name = "mypy", specifier = ">=1.4.1" }]
+typing = [
+    { name = "mypy", specifier = ">=1.4.1" },
+    { name = "pyside6-stubs", specifier = ">=6.7.0" },
+]
 
 [[package]]
 name = "et-xmlfile"
@@ -1265,6 +1269,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/35/f06b1b641d7600ec46374c16cd37c66fa4a22870326b4eb073a95471035f/pyside6_essentials-6.11.0-cp310-abi3-manylinux_2_39_aarch64.whl", hash = "sha256:4854cb0a1b061e7a576d8fb7bb7cf9f49540d558b1acb7df0742a7afefe61e4e", size = 77380821, upload-time = "2026-03-23T12:43:24.649Z" },
     { url = "https://files.pythonhosted.org/packages/ff/37/ba95c6262836d2b286b4e05a9d16a5e870995d5d2503ac6adc6312208049/pyside6_essentials-6.11.0-cp310-abi3-win_amd64.whl", hash = "sha256:3b3362882ad9389357a80504e600180006a957731fec05786fced7b038461fdf", size = 75793322, upload-time = "2026-03-23T12:43:35.575Z" },
     { url = "https://files.pythonhosted.org/packages/53/27/d17f25e45820e633a70e6109b35991eda09a5e8000c2a306f0ab7538d48c/pyside6_essentials-6.11.0-cp310-abi3-win_arm64.whl", hash = "sha256:81ca603dbf21bc39f89bb42db215c25ebe0c879a1a4c387625c321d2730ec187", size = 56337457, upload-time = "2026-03-23T12:43:43.573Z" },
+]
+
+[[package]]
+name = "pyside6-stubs"
+version = "6.7.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mypy" },
+    { name = "pyside6" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/2b/d2a3fdb212475682b11e8b6330f2cada60dcbbaf151f73f86844b11d1db6/pyside6_stubs-6.7.3.0.tar.gz", hash = "sha256:db8def2bb9c74091bfa2a4df7610d3ea344ecd00ebd4283995eeb5fda8383603", size = 509931, upload-time = "2025-03-04T05:49:15.755Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/2e/3488fa3baca56ff494b9502424675f5b14b11e966eb74d5adaf1811cd651/pyside6_stubs-6.7.3.0-py3-none-any.whl", hash = "sha256:7a2ef0d7486939f240e745829f80887ec3eab280e52c9930d64b48b3de95042a", size = 550616, upload-time = "2025-03-04T05:49:13.154Z" },
 ]
 
 [[package]]
