@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
 
-from eagleclasslists.classlist import GradeList, Student
+from eagleclasslists.classlist import GradeList, Student, Teacher
 
 
 class GradeListModel(QObject):
@@ -90,5 +90,45 @@ class GradeListModel(QObject):
                 if student.first_name == old_first_name and student.last_name == old_last_name:
                     classroom.students[i] = new_student
                     break
+
+        self.changed.emit()
+
+    def remove_teacher(self, name: str) -> None:
+        """Remove a teacher from the grade list and all classrooms.
+
+        Args:
+            name: The teacher's name.
+        """
+        self._grade_list.teachers = [
+            t for t in self._grade_list.teachers if t.name != name
+        ]
+        self._grade_list.classes = [
+            c for c in self._grade_list.classes if c.teacher.name != name
+        ]
+        for student in self._grade_list.students:
+            if student.teacher == name:
+                student.teacher = None
+        self.changed.emit()
+
+    def update_teacher(self, old_name: str, new_teacher: Teacher) -> None:
+        """Update a teacher's information in the grade list and classrooms.
+
+        Args:
+            old_name: The teacher's original name.
+            new_teacher: The updated Teacher object.
+        """
+        for i, teacher in enumerate(self._grade_list.teachers):
+            if teacher.name == old_name:
+                self._grade_list.teachers[i] = new_teacher
+                break
+
+        for classroom in self._grade_list.classes:
+            if classroom.teacher.name == old_name:
+                classroom.teacher = new_teacher
+                break
+
+        for student in self._grade_list.students:
+            if student.teacher == old_name:
+                student.teacher = new_teacher.name
 
         self.changed.emit()

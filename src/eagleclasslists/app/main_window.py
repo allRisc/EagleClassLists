@@ -38,6 +38,7 @@ from eagleclasslists.app.widgets import (
     TeachersView,
 )
 from eagleclasslists.app.widgets.students_view import StudentFormDialog
+from eagleclasslists.app.widgets.teachers_view import TeacherFormDialog
 from eagleclasslists.classlist import ExcelImportError, GradeList
 
 
@@ -82,9 +83,18 @@ class MainWindow(QMainWindow):
 
         edit_menu = menu_bar.addMenu("Edit")
 
+        new_teacher_action = QAction("New Teacher", self)
+        new_teacher_action.triggered.connect(self._new_teacher)
+        edit_menu.addAction(new_teacher_action)
+
         new_student_action = QAction("New Student", self)
         new_student_action.triggered.connect(self._new_student)
         edit_menu.addAction(new_student_action)
+
+    def _new_teacher(self) -> None:
+        """Show the new teacher form dialog."""
+        dialog = TeacherFormDialog(self.model)
+        dialog.exec()
 
     def _new_student(self) -> None:
         """Show the new student form dialog."""
