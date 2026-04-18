@@ -15,3 +15,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ####################################################################################################
+
+from __future__ import annotations
+
+from PySide6.QtWidgets import QMainWindow, QPushButton
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Hello, World!")
+
+        button = QPushButton("Exit")
+        button.pressed.connect(self.close)
+
+        self.setCentralWidget(button)
+        self.show()

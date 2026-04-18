@@ -15,3 +15,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ####################################################################################################
+
+from PySide6.QtWidgets import QApplication
+
+from eagleclasslists.app.main_window import MainWindow
+
+
+def main():
+    app = QApplication([])
+    window = MainWindow()
+
+    window.show()
+    app.exec()
+
+
+if __name__ == "__main__":
+    main()
