@@ -37,6 +37,7 @@ from eagleclasslists.app.widgets import (
     StudentsView,
     TeachersView,
 )
+from eagleclasslists.app.widgets.students_view import StudentFormDialog
 from eagleclasslists.classlist import ExcelImportError, GradeList
 
 
@@ -44,6 +45,7 @@ class MainWindow(QMainWindow):
     def __init__(self, model: GradeListModel):
         super().__init__()
         self.model = model
+        self.students_view = StudentsView(self.model)
         self.setWindowTitle("Eagle Class Lists")
 
         self._create_menu_bar()
@@ -52,7 +54,7 @@ class MainWindow(QMainWindow):
         self.show()
 
     def _create_menu_bar(self) -> None:
-        """Create the application menu bar with File menu."""
+        """Create the application menu bar with File and Edit menus."""
         menu_bar = self.menuBar()
 
         file_menu = menu_bar.addMenu("File")
@@ -78,6 +80,17 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
+        edit_menu = menu_bar.addMenu("Edit")
+
+        new_student_action = QAction("New Student", self)
+        new_student_action.triggered.connect(self._new_student)
+        edit_menu.addAction(new_student_action)
+
+    def _new_student(self) -> None:
+        """Show the new student form dialog."""
+        dialog = StudentFormDialog(self.model)
+        dialog.exec()
+
     def _create_sidebar_and_views(self) -> None:
         """Create the sidebar navigation and stacked views."""
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -87,7 +100,7 @@ class MainWindow(QMainWindow):
 
         stack = QStackedWidget()
         stack.addWidget(TeachersView(self.model))
-        stack.addWidget(StudentsView(self.model))
+        stack.addWidget(self.students_view)
         stack.addWidget(ClassroomsView(self.model))
 
         sidebar.currentRowChanged.connect(stack.setCurrentIndex)

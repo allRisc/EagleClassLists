@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
 
-from eagleclasslists.classlist import GradeList
+from eagleclasslists.classlist import GradeList, Student
 
 
 class GradeListModel(QObject):
@@ -65,4 +65,30 @@ class GradeListModel(QObject):
                 for s in classroom.students
                 if not (s.first_name == first_name and s.last_name == last_name)
             ]
+        self.changed.emit()
+
+    def update_student(
+        self,
+        old_first_name: str,
+        old_last_name: str,
+        new_student: Student,
+    ) -> None:
+        """Update a student's information in the grade list and classrooms.
+
+        Args:
+            old_first_name: The student's original first name.
+            old_last_name: The student's original last name.
+            new_student: The updated Student object.
+        """
+        for i, student in enumerate(self._grade_list.students):
+            if student.first_name == old_first_name and student.last_name == old_last_name:
+                self._grade_list.students[i] = new_student
+                break
+
+        for classroom in self._grade_list.classes:
+            for i, student in enumerate(classroom.students):
+                if student.first_name == old_first_name and student.last_name == old_last_name:
+                    classroom.students[i] = new_student
+                    break
+
         self.changed.emit()
