@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSlider,
     QSplitter,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -671,9 +672,24 @@ class OptimizationSection(QGroupBox):
         fitness_layout.addWidget(self.fitness_label)
         layout.addLayout(fitness_layout)
 
-        # Advanced settings group
-        settings_group = QGroupBox("Advanced Optimization Settings")
-        settings_layout = QVBoxLayout(settings_group)
+        # Collapsible advanced settings group
+        self._settings_collapsed = True
+        self.settings_toggle = QToolButton()
+        self.settings_toggle.setText("Advanced Optimization Settings")
+        self.settings_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.settings_toggle.setCheckable(True)
+        self.settings_toggle.setChecked(False)
+        self.settings_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self.settings_toggle.setStyleSheet(
+            "QToolButton { border: none; font-weight: bold; font-size: 13px; "
+            "text-align: left; padding: 4px 0; }"
+        )
+        self.settings_toggle.clicked.connect(self._toggle_settings)
+        layout.addWidget(self.settings_toggle)
+
+        self.settings_group = QGroupBox()
+        self.settings_layout = QVBoxLayout(self.settings_group)
+        self.settings_group.hide()
 
         # Optimization settings
         opt_group = QGroupBox("Optimization Settings")
@@ -715,7 +731,7 @@ class OptimizationSection(QGroupBox):
         iter_row.addWidget(self.iter_label)
         opt_layout.addRow("Max Iterations:", iter_row)
 
-        settings_layout.addWidget(opt_group)
+        self.settings_layout.addWidget(opt_group)
 
         # Fitness weights
         weights_group = QGroupBox("Fitness Weights")
@@ -738,8 +754,8 @@ class OptimizationSection(QGroupBox):
             self.weight_sliders[name] = spin
             weights_layout.addRow(f"{name}:", spin)
 
-        settings_layout.addWidget(weights_group)
-        layout.addWidget(settings_group)
+        self.settings_layout.addWidget(weights_group)
+        layout.addWidget(self.settings_group)
 
         # Progress bar
         self.progress_bar = QSlider(Qt.Orientation.Horizontal)
@@ -857,6 +873,15 @@ class OptimizationSection(QGroupBox):
 
     def _on_clear_results(self) -> None:
         self.results_group.hide()
+
+    def _toggle_settings(self) -> None:
+        self._settings_collapsed = not self._settings_collapsed
+        if self._settings_collapsed:
+            self.settings_group.hide()
+            self.settings_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        else:
+            self.settings_group.show()
+            self.settings_toggle.setArrowType(Qt.ArrowType.DownArrow)
 
     def refresh(self) -> None:
         fitness = calculate_fitness(self.model.grade_list, self._get_weights())
