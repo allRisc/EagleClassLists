@@ -30,6 +30,10 @@ from eagleclasslists.classlist import (
     Student,
     Teacher,
 )
+from eagleclasslists.settings import (
+    ColumnMappingPreset,
+    ColumnMappingStore,
+)
 
 
 class GradeListModel(QObject):
@@ -39,13 +43,20 @@ class GradeListModel(QObject):
     """
 
     changed = Signal()
+    preset_changed = Signal()
 
-    def __init__(self, grade_list: GradeList) -> None:
+    def __init__(
+        self,
+        grade_list: GradeList,
+        settings_store: ColumnMappingStore | None = None,
+    ) -> None:
         super().__init__()
         self._grade_list = grade_list
         self._teachers_loaded = False
         self._students_loaded = False
         self._classrooms_loaded = False
+        self._settings_store = settings_store or ColumnMappingStore()
+        self._active_preset: ColumnMappingPreset = self._settings_store.active_preset
 
     @property
     def grade_list(self) -> GradeList:
@@ -66,6 +77,26 @@ class GradeListModel(QObject):
     def classrooms_loaded(self) -> bool:
         """Whether classrooms have been loaded from a file."""
         return self._classrooms_loaded
+
+    @property
+    def active_preset(self) -> ColumnMappingPreset:
+        """The currently active column mapping preset."""
+        return self._active_preset
+
+    @property
+    def settings_store(self) -> ColumnMappingStore:
+        """The settings store for managing presets."""
+        return self._settings_store
+
+    def set_active_preset(self, preset: ColumnMappingPreset) -> None:
+        """Set the active column mapping preset and persist it.
+
+        Args:
+            preset: The preset to make active.
+        """
+        self._active_preset = preset
+        self._settings_store.active_preset = preset
+        self.preset_changed.emit()
 
     def set_grade_list(self, grade_list: GradeList) -> None:
         """Replace the entire GradeList and notify all connected views."""
@@ -92,7 +123,7 @@ class GradeListModel(QObject):
         Raises:
             ExcelImportError: If the file cannot be read or validated.
         """
-        teachers = GradeList.load_teachers_from_excel(filepath)
+        teachers = GradeList.load_teachers_from_excel(filepath, self._active_preset)
         self._grade_list.teachers = teachers
         self._teachers_loaded = True
         self.changed.emit()
@@ -106,7 +137,7 @@ class GradeListModel(QObject):
         Raises:
             ExcelImportError: If the file cannot be read or validated.
         """
-        students = GradeList.load_students_from_excel(filepath)
+        students = GradeList.load_students_from_excel(filepath, self._active_preset)
         self._grade_list.students = students
         self._students_loaded = True
         self.changed.emit()
@@ -120,13 +151,13 @@ class GradeListModel(QObject):
             filepath: Path to the classrooms Excel file.
 
         Raises:
-            ExcelImportError: If the file cannot be read, validated,
-                or if teacher/student references are missing.
+            ExcelImportError: If references cannot be resolved.
         """
         classrooms = GradeList.load_classrooms_from_excel(
             filepath,
             self._grade_list.teachers,
             self._grade_list.students,
+            self._active_preset,
         )
         self._grade_list.classes = classrooms
         self._classrooms_loaded = True
@@ -142,7 +173,7 @@ class GradeListModel(QObject):
         Args:
             filepath: Path to write the teachers Excel file.
         """
-        self._grade_list.save_teachers_to_excel(filepath)
+        self._grade_list.save_teachers_to_excel(filepath, self._active_preset)
 
     def save_students(self, filepath: str | Path) -> None:
         """Save students to an Excel file.
@@ -150,7 +181,7 @@ class GradeListModel(QObject):
         Args:
             filepath: Path to write the students Excel file.
         """
-        self._grade_list.save_students_to_excel(filepath)
+        self._grade_list.save_students_to_excel(filepath, self._active_preset)
 
     def save_classrooms(self, filepath: str | Path) -> None:
         """Save classroom assignments to an Excel file.
@@ -158,7 +189,7 @@ class GradeListModel(QObject):
         Args:
             filepath: Path to write the classrooms Excel file.
         """
-        self._grade_list.save_classrooms_to_excel(filepath)
+        self._grade_list.save_classrooms_to_excel(filepath, self._active_preset)
 
     def remove_student(self, first_name: str, last_name: str) -> None:
         """Remove a student from the grade list and all classrooms.

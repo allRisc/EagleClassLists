@@ -33,6 +33,13 @@ from typing import Any
 import pandas as pd
 import pydantic
 
+from eagleclasslists.settings import (
+    DEFAULT_PRESET,
+    ColumnMappingPreset,
+    rename_records_for_reading,
+    rename_records_for_writing,
+)
+
 
 class ExcelImportError(Exception):
     """Custom exception for Excel import errors with user-friendly messages."""
@@ -191,42 +198,77 @@ class GradeList(pydantic.BaseModel):
     # Per-entity Excel save/load
     # -----------------------------------------------------------------------
 
-    def save_teachers_to_excel(self, filepath: str | Path) -> None:
+    def save_teachers_to_excel(
+        self,
+        filepath: str | Path,
+        preset: ColumnMappingPreset = DEFAULT_PRESET,
+    ) -> None:
         """Save teachers to a single-sheet Excel file.
 
         Args:
             filepath: Path to the Excel file to create.
+            preset: Column mapping preset defining sheet name and column headers.
         """
-        df = pd.DataFrame(self.model_dump()["Teachers"])
-        df.to_excel(filepath, sheet_name="Teachers", index=False)
+        records = [t.model_dump(by_alias=False) for t in self.teachers]
+        renamed = rename_records_for_writing(records, preset.teacher_columns)
+        df = pd.DataFrame(renamed) if renamed else pd.DataFrame()
+        df.to_excel(filepath, sheet_name=preset.teachers_sheet, index=False)
 
-    def save_students_to_excel(self, filepath: str | Path) -> None:
+    def save_students_to_excel(
+        self,
+        filepath: str | Path,
+        preset: ColumnMappingPreset = DEFAULT_PRESET,
+    ) -> None:
         """Save students to a single-sheet Excel file.
 
         Args:
             filepath: Path to the Excel file to create.
+            preset: Column mapping preset defining sheet name and column headers.
         """
-        df = pd.DataFrame(self.model_dump()["Students"])
-        df.to_excel(filepath, sheet_name="Students", index=False)
+        records = [s.model_dump(by_alias=False) for s in self.students]
+        renamed = rename_records_for_writing(records, preset.student_columns)
+        df = pd.DataFrame(renamed) if renamed else pd.DataFrame()
+        df.to_excel(filepath, sheet_name=preset.students_sheet, index=False)
 
-    def save_classrooms_to_excel(self, filepath: str | Path) -> None:
+    def save_classrooms_to_excel(
+        self,
+        filepath: str | Path,
+        preset: ColumnMappingPreset = DEFAULT_PRESET,
+    ) -> None:
         """Save classroom assignments to a single-sheet Excel file.
 
-        The file contains only assignment mappings (Teacher Name,
-        Student First Name, Student Last Name).
+        The file contains only assignment mappings (teacher name,
+        student first name, student last name).
 
         Args:
             filepath: Path to the Excel file to create.
+            preset: Column mapping preset defining sheet name and column headers.
         """
-        df = pd.DataFrame(self.model_dump()["Classes"])
-        df.to_excel(filepath, sheet_name="Classrooms", index=False)
+        records: list[dict[str, str]] = []
+        for classroom in self.classes:
+            for student in classroom.students:
+                records.append(
+                    {
+                        "teacher_name": classroom.teacher.name,
+                        "student_first_name": student.first_name,
+                        "student_last_name": student.last_name,
+                    }
+                )
+        renamed = rename_records_for_writing(records, preset.classroom_columns)
+        df = pd.DataFrame(renamed) if renamed else pd.DataFrame()
+        df.to_excel(filepath, sheet_name=preset.classrooms_sheet, index=False)
 
     @classmethod
-    def load_teachers_from_excel(cls, filepath: str | Path) -> list[Teacher]:
+    def load_teachers_from_excel(
+        cls,
+        filepath: str | Path,
+        preset: ColumnMappingPreset = DEFAULT_PRESET,
+    ) -> list[Teacher]:
         """Load teachers from a single-sheet Excel file.
 
         Args:
             filepath: Path to the Excel file to read.
+            preset: Column mapping preset defining sheet name and column headers.
 
         Returns:
             A list of Teacher objects.
@@ -236,8 +278,9 @@ class GradeList(pydantic.BaseModel):
         """
         try:
             with pd.ExcelFile(filepath) as ef:
-                records = cls._sheet_to_clean_records(ef, "Teachers")
-                return [Teacher.model_validate(r) for r in records]
+                records = cls._sheet_to_clean_records(ef, preset.teachers_sheet)
+                renamed = rename_records_for_reading(records, preset.teacher_columns)
+                return [Teacher.model_validate(r) for r in renamed]
         except FileNotFoundError as e:
             raise ExcelImportError(
                 "Excel file not found",
@@ -270,11 +313,16 @@ class GradeList(pydantic.BaseModel):
             ) from e
 
     @classmethod
-    def load_students_from_excel(cls, filepath: str | Path) -> list[Student]:
+    def load_students_from_excel(
+        cls,
+        filepath: str | Path,
+        preset: ColumnMappingPreset = DEFAULT_PRESET,
+    ) -> list[Student]:
         """Load students from a single-sheet Excel file.
 
         Args:
             filepath: Path to the Excel file to read.
+            preset: Column mapping preset defining sheet name and column headers.
 
         Returns:
             A list of Student objects.
@@ -284,8 +332,9 @@ class GradeList(pydantic.BaseModel):
         """
         try:
             with pd.ExcelFile(filepath) as ef:
-                records = cls._sheet_to_clean_records(ef, "Students")
-                return [Student.model_validate(r) for r in records]
+                records = cls._sheet_to_clean_records(ef, preset.students_sheet)
+                renamed = rename_records_for_reading(records, preset.student_columns)
+                return [Student.model_validate(r) for r in renamed]
         except FileNotFoundError as e:
             raise ExcelImportError(
                 "Excel file not found",
@@ -324,6 +373,7 @@ class GradeList(pydantic.BaseModel):
         filepath: str | Path,
         teachers: list[Teacher],
         students: list[Student],
+        preset: ColumnMappingPreset = DEFAULT_PRESET,
     ) -> list[Classroom]:
         """Load classroom assignments from a single-sheet Excel file.
 
@@ -333,6 +383,7 @@ class GradeList(pydantic.BaseModel):
             filepath: Path to the Excel file to read.
             teachers: List of Teacher objects for name resolution.
             students: List of Student objects for name resolution.
+            preset: Column mapping preset defining sheet name and column headers.
 
         Returns:
             A list of Classroom objects.
@@ -347,7 +398,10 @@ class GradeList(pydantic.BaseModel):
 
         try:
             with pd.ExcelFile(filepath) as ef:
-                records = cls._sheet_to_clean_records(ef, "Classrooms")
+                raw_records = cls._sheet_to_clean_records(ef, preset.classrooms_sheet)
+                records = rename_records_for_reading(
+                    raw_records, preset.classroom_columns
+                )
         except FileNotFoundError as e:
             raise ExcelImportError(
                 "Excel file not found",
@@ -369,19 +423,19 @@ class GradeList(pydantic.BaseModel):
 
         classrooms: dict[str, Classroom] = {}
         for rec in records:
-            teacher_name = rec.get("Teacher Name")
-            first_name = rec.get("Student First Name")
-            last_name = rec.get("Student Last Name")
+            teacher_name = rec.get("teacher_name")
+            first_name = rec.get("student_first_name")
+            last_name = rec.get("student_last_name")
 
             if not teacher_name:
                 raise ExcelImportError(
                     "Missing Teacher Name in classroom data",
-                    "Each row must have a 'Teacher Name' column.",
+                    "Each row must have a 'teacher_name' column.",
                 )
             if not first_name or not last_name:
                 raise ExcelImportError(
                     "Missing student name in classroom data",
-                    "Each row must have 'Student First Name' and 'Student Last Name' columns.",
+                    "Each row must have 'student_first_name' and 'student_last_name' columns.",
                 )
 
             if teacher_name not in teacher_dict:

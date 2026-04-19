@@ -23,6 +23,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
+    QDialog,
     QFileDialog,
     QListWidget,
     QMainWindow,
@@ -32,6 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 from eagleclasslists.app.grade_list_model import GradeListModel
+from eagleclasslists.app.settings_dialog import ColumnMappingDialog
 from eagleclasslists.app.widgets import (
     ClassroomsView,
     StudentsView,
@@ -109,6 +111,12 @@ class MainWindow(QMainWindow):
         new_student_action.triggered.connect(self._new_student)
         edit_menu.addAction(new_student_action)
 
+        edit_menu.addSeparator()
+
+        column_mapping_action = QAction("Column Mapping...", self)
+        column_mapping_action.triggered.connect(self._show_column_mapping)
+        edit_menu.addAction(column_mapping_action)
+
     def _new_teacher(self) -> None:
         """Show the new teacher form dialog."""
         dialog = TeacherFormDialog(self.model)
@@ -118,6 +126,12 @@ class MainWindow(QMainWindow):
         """Show the new student form dialog."""
         dialog = StudentFormDialog(self.model)
         dialog.exec()
+
+    def _show_column_mapping(self) -> None:
+        """Show the column mapping settings dialog."""
+        dialog = ColumnMappingDialog(self.model.settings_store, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.model.set_active_preset(self.model.settings_store.active_preset)
 
     def _create_sidebar_and_views(self) -> None:
         """Create the sidebar navigation and stacked views."""

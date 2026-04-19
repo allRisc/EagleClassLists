@@ -244,10 +244,12 @@ def _is_valid_assignment(classroom: Classroom, student: Student) -> bool:
     """Check if a student can be assigned to a classroom.
 
     Validates hard constraints:
-    - Teacher request: if student has a request, must match classroom's teacher
+
+    - Teacher request: if student has a request, must match classroom's
+      teacher
     - Cluster: if student has a cluster, teacher must be qualified
-    - Exclusions: bidirectional - student cannot be with anyone they exclude,
-      and cannot be with anyone who excludes them
+    - Exclusions: bidirectional - student cannot be with anyone they
+      exclude, and cannot be with anyone who excludes them
 
     Args:
         classroom: The classroom to check.

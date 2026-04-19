@@ -36,6 +36,7 @@ from eagleclasslists.classlist import (
     Student,
     Teacher,
 )
+from eagleclasslists.settings import ColumnMappingPreset
 
 
 class TestTeachersExcel:
@@ -600,3 +601,256 @@ class TestExcelImportError:
         with pytest.raises(ExcelImportError) as exc_info:
             GradeList.load_classrooms_from_excel(missing, [], [])
         assert "not found" in str(exc_info.value).lower()
+
+
+ESTES_PRESET = ColumnMappingPreset(
+    name="Estes Format",
+    teachers_sheet="Teachers",
+    students_sheet="Student Data",
+    classrooms_sheet="Classes",
+    teacher_columns={
+        "name": "Teacher Name",
+        "clusters": "Qualifications",
+    },
+    student_columns={
+        "first_name": "FName",
+        "last_name": "LName",
+        "gender": "Sex",
+        "math": "Math Level",
+        "ela": "ELA Level",
+        "behavior": "Behavior Level",
+        "teacher": "Requested Teacher",
+        "cluster": "Program",
+        "resource": "Resource",
+        "speech": "Speech",
+        "exclusions": "Cannot Be With",
+    },
+    classroom_columns={
+        "teacher_name": "Instructor",
+        "student_first_name": "Stu First",
+        "student_last_name": "Stu Last",
+    },
+)
+
+
+class TestCustomPresetTeachers:
+    """Test teachers roundtrip with a custom column mapping preset."""
+
+    @pytest.fixture
+    def sample_teachers(self) -> list[Teacher]:
+        return [
+            Teacher(name="Ms. Smith", clusters=[Cluster.AC, Cluster.EL]),
+            Teacher(name="Mr. Jones", clusters=[Cluster.GEM]),
+        ]
+
+    def test_roundtrip_teachers_custom_preset(
+        self, sample_teachers: list[Teacher], tmp_path: Path
+    ) -> None:
+        grade_list = GradeList(teachers=sample_teachers, students=[])
+        filepath = tmp_path / "teachers_custom.xlsx"
+        grade_list.save_teachers_to_excel(filepath, preset=ESTES_PRESET)
+        loaded = GradeList.load_teachers_from_excel(filepath, preset=ESTES_PRESET)
+
+        assert len(loaded) == 2
+        names = {t.name for t in loaded}
+        assert "Ms. Smith" in names
+        assert "Mr. Jones" in names
+
+        smith = next(t for t in loaded if t.name == "Ms. Smith")
+        assert Cluster.AC in smith.clusters
+        assert Cluster.EL in smith.clusters
+
+    def test_custom_preset_uses_custom_sheet_name(
+        self, sample_teachers: list[Teacher], tmp_path: Path
+    ) -> None:
+        import pandas as pd
+
+        grade_list = GradeList(teachers=sample_teachers, students=[])
+        filepath = tmp_path / "teachers_custom.xlsx"
+        grade_list.save_teachers_to_excel(filepath, preset=ESTES_PRESET)
+
+        with pd.ExcelFile(filepath) as ef:
+            assert "Teachers" in ef.sheet_names
+
+    def test_custom_preset_uses_custom_column_headers(
+        self, sample_teachers: list[Teacher], tmp_path: Path
+    ) -> None:
+        import pandas as pd
+
+        grade_list = GradeList(teachers=sample_teachers, students=[])
+        filepath = tmp_path / "teachers_custom.xlsx"
+        grade_list.save_teachers_to_excel(filepath, preset=ESTES_PRESET)
+
+        df = pd.read_excel(filepath, sheet_name="Teachers")
+        assert "Teacher Name" in df.columns
+        assert "Qualifications" in df.columns
+        assert "Name" not in df.columns
+        assert "Clusters" not in df.columns
+
+
+class TestCustomPresetStudents:
+    """Test students roundtrip with a custom column mapping preset."""
+
+    @pytest.fixture
+    def sample_students(self) -> list[Student]:
+        return [
+            Student(
+                first_name="Alice",
+                last_name="Anderson",
+                gender=Gender.FEMALE,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
+                behavior=Behavior.HIGH,
+                cluster=Cluster.GEM,
+                resource=True,
+                speech=False,
+                exclusions=["Bob Brown"],
+            ),
+            Student(
+                first_name="Bob",
+                last_name="Brown",
+                gender=Gender.MALE,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
+                behavior=Behavior.MEDIUM,
+            ),
+        ]
+
+    def test_roundtrip_students_custom_preset(
+        self, sample_students: list[Student], tmp_path: Path
+    ) -> None:
+        grade_list = GradeList(teachers=[], students=sample_students)
+        filepath = tmp_path / "students_custom.xlsx"
+        grade_list.save_students_to_excel(filepath, preset=ESTES_PRESET)
+        loaded = GradeList.load_students_from_excel(filepath, preset=ESTES_PRESET)
+
+        assert len(loaded) == 2
+
+        alice = next(s for s in loaded if s.first_name == "Alice")
+        assert alice.gender == Gender.FEMALE
+        assert alice.math == Math.HIGH
+        assert alice.cluster == Cluster.GEM
+        assert alice.resource is True
+        assert "Bob Brown" in alice.exclusions
+
+    def test_custom_preset_uses_custom_student_sheet_name(
+        self, sample_students: list[Student], tmp_path: Path
+    ) -> None:
+        import pandas as pd
+
+        grade_list = GradeList(teachers=[], students=sample_students)
+        filepath = tmp_path / "students_custom.xlsx"
+        grade_list.save_students_to_excel(filepath, preset=ESTES_PRESET)
+
+        with pd.ExcelFile(filepath) as ef:
+            assert "Student Data" in ef.sheet_names
+
+    def test_custom_preset_uses_custom_student_column_headers(
+        self, sample_students: list[Student], tmp_path: Path
+    ) -> None:
+        import pandas as pd
+
+        grade_list = GradeList(teachers=[], students=sample_students)
+        filepath = tmp_path / "students_custom.xlsx"
+        grade_list.save_students_to_excel(filepath, preset=ESTES_PRESET)
+
+        df = pd.read_excel(filepath, sheet_name="Student Data")
+        assert "FName" in df.columns
+        assert "LName" in df.columns
+        assert "Sex" in df.columns
+        assert "Math Level" in df.columns
+        assert "ELA Level" in df.columns
+        assert "Behavior Level" in df.columns
+        assert "Program" in df.columns
+        assert "Cannot Be With" in df.columns
+        assert "First Name" not in df.columns
+        assert "Last Name" not in df.columns
+        assert "Gender" not in df.columns
+
+
+class TestCustomPresetClassrooms:
+    """Test classrooms roundtrip with a custom column mapping preset."""
+
+    @pytest.fixture
+    def sample_teachers(self) -> list[Teacher]:
+        return [
+            Teacher(name="Ms. Smith", clusters=[Cluster.AC, Cluster.EL]),
+            Teacher(name="Mr. Jones", clusters=[Cluster.GEM]),
+        ]
+
+    @pytest.fixture
+    def sample_students(self) -> list[Student]:
+        return [
+            Student(
+                first_name="Alice",
+                last_name="Anderson",
+                gender=Gender.FEMALE,
+                math=Math.HIGH,
+                ela=ELA.HIGH,
+                behavior=Behavior.HIGH,
+            ),
+            Student(
+                first_name="Bob",
+                last_name="Brown",
+                gender=Gender.MALE,
+                math=Math.MEDIUM,
+                ela=ELA.MEDIUM,
+                behavior=Behavior.MEDIUM,
+            ),
+        ]
+
+    def test_roundtrip_classrooms_custom_preset(
+        self,
+        sample_teachers: list[Teacher],
+        sample_students: list[Student],
+        tmp_path: Path,
+    ) -> None:
+        classroom = Classroom(
+            teacher=sample_teachers[0],
+            students=[sample_students[0], sample_students[1]],
+        )
+        grade_list = GradeList(
+            classes=[classroom],
+            teachers=sample_teachers,
+            students=sample_students,
+        )
+
+        filepath = tmp_path / "classrooms_custom.xlsx"
+        grade_list.save_classrooms_to_excel(filepath, preset=ESTES_PRESET)
+        loaded = GradeList.load_classrooms_from_excel(
+            filepath, sample_teachers, sample_students, preset=ESTES_PRESET
+        )
+
+        assert len(loaded) == 1
+
+        smith_class = next(c for c in loaded if c.teacher.name == "Ms. Smith")
+        names = {(s.first_name, s.last_name) for s in smith_class.students}
+        assert ("Alice", "Anderson") in names
+        assert ("Bob", "Brown") in names
+
+    def test_custom_preset_uses_custom_classroom_sheet_and_headers(
+        self,
+        sample_teachers: list[Teacher],
+        sample_students: list[Student],
+        tmp_path: Path,
+    ) -> None:
+        import pandas as pd
+
+        classroom = Classroom(teacher=sample_teachers[0], students=[sample_students[0]])
+        grade_list = GradeList(
+            classes=[classroom],
+            teachers=sample_teachers,
+            students=sample_students,
+        )
+
+        filepath = tmp_path / "classrooms_custom.xlsx"
+        grade_list.save_classrooms_to_excel(filepath, preset=ESTES_PRESET)
+
+        with pd.ExcelFile(filepath) as ef:
+            assert "Classes" in ef.sheet_names
+
+        df = pd.read_excel(filepath, sheet_name="Classes")
+        assert "Instructor" in df.columns
+        assert "Stu First" in df.columns
+        assert "Stu Last" in df.columns
+        assert "Teacher Name" not in df.columns
