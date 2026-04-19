@@ -6,6 +6,34 @@ All notable changes to ``EagleClassLists`` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Unreleased
+----------------------------------------------------------------------
+
+### Added
+- **PySide6 desktop application** - New desktop UI built with PySide6 as an
+  alternative to the Streamlit web interface
+  - Main window with sidebar navigation and stacked views
+  - Grade list model for shared app state with signal-based reactivity
+- **Students view** - Manage students with summary display and add/edit/remove
+  - Student form dialog for adding and editing student information
+  - Compact summary display with consolidated attributes
+- **Teachers view** - Full CRUD for managing teachers with menu bar actions
+  - Add, edit, and remove teachers with cluster assignments
+- **Classrooms view** - Manage classroom assignments with visual teacher columns
+  - Unassigned students panel with bulk assignment controls
+  - Teacher columns with student rows, move/remove selected functionality
+  - Auto-balance using greedy algorithm to distribute unassigned students
+  - Classroom statistics with stacked bar charts for gender, academics, behavior,
+    services, and clusters
+  - Simulated annealing optimization with configurable settings and fitness weights
+  - Collapsible advanced optimization settings with arrow indicator
+  - Progress tracking and optimization results display
+
+### Fixed
+- **Infinite loop in auto-balance UI refresh** - Fixed bug where rebuilding teacher
+  columns after auto-balance caused an infinite loop due to `_clear_layout` both
+  clearing and rebuilding the layout simultaneously
+
 0.2.0
 ----------------------------------------------------------------------
 
