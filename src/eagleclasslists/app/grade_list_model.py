@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
 
-from eagleclasslists.classlist import GradeList, Student, Teacher
+from eagleclasslists.classlist import Classroom, GradeList, Student, Teacher
 
 
 class GradeListModel(QObject):
@@ -131,4 +131,71 @@ class GradeListModel(QObject):
             if student.teacher == old_name:
                 student.teacher = new_teacher.name
 
+        self.changed.emit()
+
+    def add_student_to_classroom(self, teacher_name: str, first_name: str, last_name: str) -> None:
+        """Add a student to a teacher's classroom, creating it if needed.
+
+        Args:
+            teacher_name: The teacher's name.
+            first_name: The student's first name.
+            last_name: The student's last name.
+        """
+        teacher = next(
+            (t for t in self._grade_list.teachers if t.name == teacher_name), None
+        )
+        if teacher is None:
+            return
+
+        student = next(
+            (
+                s
+                for s in self._grade_list.students
+                if s.first_name == first_name and s.last_name == last_name
+            ),
+            None,
+        )
+        if student is None:
+            return
+
+        classroom: Classroom | None = next(
+            (c for c in self._grade_list.classes if c.teacher.name == teacher_name),
+            None,
+        )
+        if classroom is None:
+            classroom = Classroom(teacher=teacher, students=[])
+            self._grade_list.classes.append(classroom)
+
+        already_assigned = any(
+            s.first_name == first_name and s.last_name == last_name
+            for s in classroom.students
+        )
+        if not already_assigned:
+            classroom.students.append(student)
+            self.changed.emit()
+
+    def remove_student_from_classroom(
+        self, teacher_name: str, first_name: str, last_name: str
+    ) -> None:
+        """Remove a student from a specific classroom.
+
+        Args:
+            teacher_name: The teacher's name.
+            first_name: The student's first name.
+            last_name: The student's last name.
+        """
+        for classroom in self._grade_list.classes:
+            if classroom.teacher.name == teacher_name:
+                classroom.students = [
+                    s
+                    for s in classroom.students
+                    if not (s.first_name == first_name and s.last_name == last_name)
+                ]
+                self.changed.emit()
+                return
+
+    def unassign_all_students(self) -> None:
+        """Remove all students from all classrooms."""
+        for classroom in self._grade_list.classes:
+            classroom.students.clear()
         self.changed.emit()
