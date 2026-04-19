@@ -447,7 +447,7 @@ class UnassignedStudentsPanel(QWidget):
     def __init__(self, model: GradeListModel) -> None:
         super().__init__()
         self.model = model
-        self.target_combo: QComboBox | None = None
+        self.target_combo: QComboBox
         self._rows: list[UnassignedStudentRow] = []
         self._setup_ui()
         model.changed.connect(self._refresh)
@@ -485,15 +485,11 @@ class UnassignedStudentsPanel(QWidget):
         layout.addWidget(scroll_area, stretch=1)
 
     def _populate_teacher_combo(self) -> None:
-        if self.target_combo is None:
-            return
         self.target_combo.clear()
         for teacher in self.model.grade_list.teachers:
             self.target_combo.addItem(teacher.name)
 
     def _on_assign_selected(self) -> None:
-        if self.target_combo is None:
-            return
         teacher = self.target_combo.currentText()
         if not teacher:
             QMessageBox.warning(self, "Warning", "No teacher selected.")
