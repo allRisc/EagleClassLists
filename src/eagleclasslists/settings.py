@@ -34,6 +34,7 @@ import pydantic
 
 _DEFAULT_TEACHER_COLUMNS: dict[str, str] = {
     "name": "Name",
+    "grade": "Grade",
     "clusters": "Clusters",
 }
 
@@ -44,6 +45,7 @@ _DEFAULT_STUDENT_COLUMNS: dict[str, str] = {
     "math": "Math",
     "ela": "ELA",
     "behavior": "Behavior",
+    "grade": "Grade",
     "teacher": "Teacher",
     "cluster": "Cluster",
     "resource": "Resource",
@@ -53,8 +55,10 @@ _DEFAULT_STUDENT_COLUMNS: dict[str, str] = {
 
 _DEFAULT_CLASSROOM_COLUMNS: dict[str, str] = {
     "teacher_name": "Teacher Name",
+    "teacher_grade": "Teacher Grade",
     "student_first_name": "Student First Name",
     "student_last_name": "Student Last Name",
+    "student_grade": "Student Grade",
 }
 
 TEACHER_FIELDS: list[str] = list(_DEFAULT_TEACHER_COLUMNS.keys())

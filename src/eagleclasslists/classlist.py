@@ -181,15 +181,17 @@ class GradeList(pydantic.BaseModel):
         return list(classes.values())
 
     @pydantic.field_serializer("classes", mode="plain")
-    def serialize_classes(self, value: list[Classroom]) -> list[dict[str, str]]:
-        serial_classes: list[dict[str, str]] = []
+    def serialize_classes(self, value: list[Classroom]) -> list[dict[str, str | None]]:
+        serial_classes: list[dict[str, str | None]] = []
         for classroom in value:
             for student in classroom.students:
                 serial_classes.append(
                     {
                         "Teacher Name": classroom.teacher.name,
+                        "Teacher Grade": classroom.teacher.grade,
                         "Student First Name": student.first_name,
                         "Student Last Name": student.last_name,
+                        "Student Grade": student.grade,
                     }
                 )
         return serial_classes
@@ -244,14 +246,16 @@ class GradeList(pydantic.BaseModel):
             filepath: Path to the Excel file to create.
             preset: Column mapping preset defining sheet name and column headers.
         """
-        records: list[dict[str, str]] = []
+        records: list[dict[str, str | None]] = []
         for classroom in self.classes:
             for student in classroom.students:
                 records.append(
                     {
                         "teacher_name": classroom.teacher.name,
+                        "teacher_grade": classroom.teacher.grade,
                         "student_first_name": student.first_name,
                         "student_last_name": student.last_name,
+                        "student_grade": student.grade,
                     }
                 )
         renamed = rename_records_for_writing(records, preset.classroom_columns)
@@ -491,8 +495,18 @@ class Teacher(pydantic.BaseModel):
     name: str = pydantic.Field(alias="Name")
     """The teacher's full name."""
 
+    grade: str | None = pydantic.Field(alias="Grade", default=None)
+    """The grade level this teacher belongs to."""
+
     clusters: list[Cluster] = pydantic.Field(alias="Clusters", default_factory=list)
     """List of Cluster types this teacher is qualified to teach."""
+
+    @pydantic.field_validator("grade", mode="before")
+    @classmethod
+    def convert_grade_to_str(cls, val: Any) -> Any:
+        if val is None or (isinstance(val, str) and val.strip() == ""):
+            return None
+        return str(val)
 
     @pydantic.field_validator("clusters", mode="before")
     @classmethod
@@ -531,6 +545,9 @@ class Student(pydantic.BaseModel):
     behavior: Behavior = pydantic.Field(alias="Behavior")
     """The student's behavior rating (Behavior enum)."""
 
+    grade: str | None = pydantic.Field(alias="Grade", default=None)
+    """The grade level this student belongs to."""
+
     teacher: str | None = pydantic.Field(alias="Teacher", default=None)
     """The assigned Teacher, or None if unassigned."""
 
@@ -545,6 +562,13 @@ class Student(pydantic.BaseModel):
 
     exclusions: list[str] = pydantic.Field(alias="Exclusions", default_factory=list)
     """List of student names (FirstName LastName) this student cannot be with."""
+
+    @pydantic.field_validator("grade", mode="before")
+    @classmethod
+    def convert_grade_to_str(cls, val: Any) -> Any:
+        if val is None or (isinstance(val, str) and val.strip() == ""):
+            return None
+        return str(val)
 
     @pydantic.field_validator("exclusions", mode="before")
     @classmethod

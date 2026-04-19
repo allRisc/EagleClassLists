@@ -77,9 +77,16 @@ class StudentFormDialog(QDialog):
         for gender in Gender:
             self.gender_combo.addItem(gender.value)
 
+        self.grade_combo = QComboBox()
+        self.grade_combo.setEditable(True)
+        self.grade_combo.addItem("")
+        for grade in self.model.available_grades:
+            self.grade_combo.addItem(grade)
+
         personal_layout.addRow("First Name:", self.first_name_edit)
         personal_layout.addRow("Last Name:", self.last_name_edit)
         personal_layout.addRow("Gender:", self.gender_combo)
+        personal_layout.addRow("Grade:", self.grade_combo)
         personal_group.setLayout(personal_layout)
         left_column.addWidget(personal_group)
 
@@ -174,6 +181,13 @@ class StudentFormDialog(QDialog):
         self.first_name_edit.setText(student.first_name)
         self.last_name_edit.setText(student.last_name)
 
+        if student.grade is not None:
+            grade_index = self.grade_combo.findText(student.grade)
+            if grade_index >= 0:
+                self.grade_combo.setCurrentIndex(grade_index)
+            else:
+                self.grade_combo.setEditText(student.grade)
+
         self.gender_combo.setCurrentIndex(list(Gender).index(student.gender))
         self.math_combo.setCurrentIndex(list(Math).index(student.math))
         self.ela_combo.setCurrentIndex(list(ELA).index(student.ela))
@@ -233,6 +247,9 @@ class StudentFormDialog(QDialog):
         teacher_value = self.teacher_combo.currentText()
         teacher = None if teacher_value == "None" else teacher_value
 
+        grade_value = self.grade_combo.currentText().strip()
+        grade = grade_value if grade_value else None
+
         exclusions = []
         for i in range(self.exclusions_list.count()):
             item = self.exclusions_list.item(i)
@@ -246,6 +263,7 @@ class StudentFormDialog(QDialog):
             math=list(Math)[self.math_combo.currentIndex()],
             ela=list(ELA)[self.ela_combo.currentIndex()],
             behavior=list(Behavior)[self.behavior_combo.currentIndex()],
+            grade=grade,
             cluster=cluster,
             resource=self.resource_checkbox.isChecked(),
             speech=self.speech_checkbox.isChecked(),

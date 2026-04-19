@@ -47,6 +47,7 @@ class TestColumnMappingPreset:
     def test_default_preset_teacher_columns(self) -> None:
         assert DEFAULT_PRESET.teacher_columns == {
             "name": "Name",
+            "grade": "Grade",
             "clusters": "Clusters",
         }
 
@@ -58,6 +59,7 @@ class TestColumnMappingPreset:
             "math": "Math",
             "ela": "ELA",
             "behavior": "Behavior",
+            "grade": "Grade",
             "teacher": "Teacher",
             "cluster": "Cluster",
             "resource": "Resource",
@@ -68,8 +70,10 @@ class TestColumnMappingPreset:
     def test_default_preset_classroom_columns(self) -> None:
         assert DEFAULT_PRESET.classroom_columns == {
             "teacher_name": "Teacher Name",
+            "teacher_grade": "Teacher Grade",
             "student_first_name": "Student First Name",
             "student_last_name": "Student Last Name",
+            "student_grade": "Student Grade",
         }
 
     def test_default_preset_sheet_names(self) -> None:
@@ -104,7 +108,7 @@ class TestColumnMappingPreset:
 
     def test_reverse_teacher_columns(self) -> None:
         reverse = DEFAULT_PRESET.reverse_teacher_columns()
-        assert reverse == {"Name": "name", "Clusters": "clusters"}
+        assert reverse == {"Name": "name", "Grade": "grade", "Clusters": "clusters"}
 
     def test_reverse_student_columns(self) -> None:
         reverse = DEFAULT_PRESET.reverse_student_columns()
@@ -116,8 +120,10 @@ class TestColumnMappingPreset:
         reverse = DEFAULT_PRESET.reverse_classroom_columns()
         assert reverse == {
             "Teacher Name": "teacher_name",
+            "Teacher Grade": "teacher_grade",
             "Student First Name": "student_first_name",
             "Student Last Name": "student_last_name",
+            "Student Grade": "student_grade",
         }
 
     def test_model_serialization_roundtrip(self) -> None:
