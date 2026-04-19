@@ -28,7 +28,7 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any
 
 import pandas as pd
 import pydantic
@@ -187,107 +187,61 @@ class GradeList(pydantic.BaseModel):
                 )
         return serial_classes
 
-    def save_to_excel(self, filepath: str | Path | BinaryIO) -> None:
-        """Save the grade list to an Excel file with three sheets.
+    # -----------------------------------------------------------------------
+    # Per-entity Excel save/load
+    # -----------------------------------------------------------------------
 
-        Creates an Excel file with "Teachers", "Students", and "Classrooms"
-        sheets following the Option C structure.
-
-        Args:
-            filepath: Path to the Excel file to create, or a file-like object
-                to write to.
-        """
-        with pd.ExcelWriter(filepath) as ew:
-            for sheet in self.model_dump():
-                self._list_attr_to_sheet(ew, attr=sheet)
-
-    def _list_attr_to_sheet(self, ew: pd.ExcelWriter, attr: str) -> None:
-        """Save the list for the attrs to the attr's sheet in the provided excel file
+    def save_teachers_to_excel(self, filepath: str | Path) -> None:
+        """Save teachers to a single-sheet Excel file.
 
         Args:
-            ew: The excel writer to use
-            attr: The name of the attr to write
+            filepath: Path to the Excel file to create.
         """
-        pd.DataFrame(self.model_dump()[attr]).to_excel(ew, sheet_name=attr, index=False)
+        df = pd.DataFrame(self.model_dump()["Teachers"])
+        df.to_excel(filepath, sheet_name="Teachers", index=False)
+
+    def save_students_to_excel(self, filepath: str | Path) -> None:
+        """Save students to a single-sheet Excel file.
+
+        Args:
+            filepath: Path to the Excel file to create.
+        """
+        df = pd.DataFrame(self.model_dump()["Students"])
+        df.to_excel(filepath, sheet_name="Students", index=False)
+
+    def save_classrooms_to_excel(self, filepath: str | Path) -> None:
+        """Save classroom assignments to a single-sheet Excel file.
+
+        The file contains only assignment mappings (Teacher Name,
+        Student First Name, Student Last Name).
+
+        Args:
+            filepath: Path to the Excel file to create.
+        """
+        df = pd.DataFrame(self.model_dump()["Classes"])
+        df.to_excel(filepath, sheet_name="Classrooms", index=False)
 
     @classmethod
-    def from_excel(cls, filepath: str | Path) -> GradeList:
-        """Load a grade list from an Excel file.
-
-        Reads an Excel file with "Teachers", "Students", and "Classrooms"
-        sheets and reconstructs the GradeList object.
+    def load_teachers_from_excel(cls, filepath: str | Path) -> list[Teacher]:
+        """Load teachers from a single-sheet Excel file.
 
         Args:
             filepath: Path to the Excel file to read.
 
         Returns:
-            A GradeList object populated from the Excel data.
+            A list of Teacher objects.
 
         Raises:
             ExcelImportError: If the Excel file has invalid data or format.
         """
         try:
             with pd.ExcelFile(filepath) as ef:
-                # Check for required sheets
-                required_sheets = {"Teachers", "Students"}
-                available_sheets: set[str] = {str(s) for s in ef.sheet_names}
-                missing_sheets = required_sheets - available_sheets
-
-                if missing_sheets:
-                    sheet_list = ", ".join(f'"{s}"' for s in sorted(missing_sheets))
-                    available_list = ", ".join(f'"{s}"' for s in sorted(available_sheets))
-                    raise ExcelImportError(
-                        f"Missing required sheet(s): {sheet_list}",
-                        f"The Excel file must contain 'Teachers' and 'Students' sheets. "
-                        f"Available sheets: {available_list}. "
-                        f"Please check that your file was exported correctly.",
-                    )
-
-                # Parse each sheet
-                data: dict[str, list[dict]] = {}
-                for sheet in ef.sheet_names:
-                    sheet_name = str(sheet)
-                    try:
-                        data[sheet_name] = cls._sheet_to_clean_records(ef, sheet_name)
-                    except Exception as e:
-                        raise ExcelImportError(
-                            f"Error reading '{sheet_name}' sheet",
-                            f"Could not parse the '{sheet_name}' sheet. "
-                            f"Make sure it contains valid table data with headers. "
-                            f"Technical error: {e}",
-                        ) from e
-
-                # Validate the data
-                try:
-                    return cls.model_validate(data)
-                except pydantic.ValidationError as e:
-                    # Build user-friendly error messages from validation errors
-                    errors = []
-                    for err in e.errors():
-                        loc = " -> ".join(str(x) for x in err["loc"])
-                        msg = err["msg"]
-                        errors.append(f"  • {loc}: {msg}")
-
-                    error_details = "\n".join(errors)
-                    raise ExcelImportError(
-                        "Data validation failed. Please check your Excel file format.",
-                        f"The following fields have errors:\n{error_details}\n\n"
-                        f"Common issues:\n"
-                        f"  • Make sure required columns are present: "
-                        f"Name (Teachers), First Name, Last Name, Gender, Math, ELA, "
-                        f"Behavior (Students)\n"
-                        f"  • Gender must be: Male, Female, M, or F\n"
-                        f"  • Math/ELA/Behavior must be: High, Medium, Low, H, M, or L\n"
-                        f"  • Cluster must be: AC, GEM, EL, or blank\n"
-                        f"  • Resource and Speech must be: TRUE/FALSE, Yes/No, or 1/0\n"
-                        f"  • Exclusions: comma-separated names "
-                        f"(e.g., 'Alice Smith, Bob Jones')",
-                    ) from e
-
-        except pd.errors.EmptyDataError as e:
+                records = cls._sheet_to_clean_records(ef, "Teachers")
+                return [Teacher.model_validate(r) for r in records]
+        except FileNotFoundError as e:
             raise ExcelImportError(
-                "The Excel file is empty",
-                "The uploaded file contains no data. Please check the file and try again.",
+                "Excel file not found",
+                "The specified file could not be found. Please check the path.",
             ) from e
         except pd.errors.ParserError as e:
             raise ExcelImportError(
@@ -295,30 +249,170 @@ class GradeList(pydantic.BaseModel):
                 f"The file appears to be corrupted or is not a valid Excel file. "
                 f"Technical error: {e}",
             ) from e
+        except pydantic.ValidationError as e:
+            errors = []
+            for err in e.errors():
+                loc = " -> ".join(str(x) for x in err["loc"])
+                msg = err["msg"]
+                errors.append(f"  - {loc}: {msg}")
+            error_details = "\n".join(errors)
+            raise ExcelImportError(
+                "Teacher data validation failed.",
+                f"Errors:\n{error_details}\n\n"
+                f"Required columns: Name, Clusters (optional).",
+            ) from e
+        except Exception as e:
+            if isinstance(e, ExcelImportError):
+                raise
+            raise ExcelImportError(
+                "Unexpected error loading teachers file",
+                f"An unexpected error occurred: {type(e).__name__}: {e}",
+            ) from e
+
+    @classmethod
+    def load_students_from_excel(cls, filepath: str | Path) -> list[Student]:
+        """Load students from a single-sheet Excel file.
+
+        Args:
+            filepath: Path to the Excel file to read.
+
+        Returns:
+            A list of Student objects.
+
+        Raises:
+            ExcelImportError: If the Excel file has invalid data or format.
+        """
+        try:
+            with pd.ExcelFile(filepath) as ef:
+                records = cls._sheet_to_clean_records(ef, "Students")
+                return [Student.model_validate(r) for r in records]
         except FileNotFoundError as e:
             raise ExcelImportError(
                 "Excel file not found",
                 "The specified file could not be found. Please check the path.",
             ) from e
+        except pd.errors.ParserError as e:
+            raise ExcelImportError(
+                "Could not parse the Excel file",
+                f"The file appears to be corrupted or is not a valid Excel file. "
+                f"Technical error: {e}",
+            ) from e
+        except pydantic.ValidationError as e:
+            errors = []
+            for err in e.errors():
+                loc = " -> ".join(str(x) for x in err["loc"])
+                msg = err["msg"]
+                errors.append(f"  - {loc}: {msg}")
+            error_details = "\n".join(errors)
+            raise ExcelImportError(
+                "Student data validation failed.",
+                f"Errors:\n{error_details}\n\n"
+                f"Required columns: First Name, Last Name, Gender, Math, ELA, Behavior.\n"
+                f"Optional columns: Cluster, Resource, Speech, Teacher, Exclusions.",
+            ) from e
         except Exception as e:
-            # Re-raise ExcelImportError as-is
             if isinstance(e, ExcelImportError):
                 raise
-            # Convert unexpected errors
             raise ExcelImportError(
-                "Unexpected error loading Excel file",
-                f"An unexpected error occurred: {type(e).__name__}: {e}. "
-                f"Please check that your file is a valid Excel file (.xlsx).",
+                "Unexpected error loading students file",
+                f"An unexpected error occurred: {type(e).__name__}: {e}",
             ) from e
+
+    @classmethod
+    def load_classrooms_from_excel(
+        cls,
+        filepath: str | Path,
+        teachers: list[Teacher],
+        students: list[Student],
+    ) -> list[Classroom]:
+        """Load classroom assignments from a single-sheet Excel file.
+
+        Requires teachers and students lists to resolve references.
+
+        Args:
+            filepath: Path to the Excel file to read.
+            teachers: List of Teacher objects for name resolution.
+            students: List of Student objects for name resolution.
+
+        Returns:
+            A list of Classroom objects.
+
+        Raises:
+            ExcelImportError: If references cannot be resolved.
+        """
+        teacher_dict: dict[str, Teacher] = {t.name: t for t in teachers}
+        student_dict: dict[str, Student] = {
+            f"{s.first_name}_{s.last_name}": s for s in students
+        }
+
+        try:
+            with pd.ExcelFile(filepath) as ef:
+                records = cls._sheet_to_clean_records(ef, "Classrooms")
+        except FileNotFoundError as e:
+            raise ExcelImportError(
+                "Excel file not found",
+                "The specified file could not be found. Please check the path.",
+            ) from e
+        except pd.errors.ParserError as e:
+            raise ExcelImportError(
+                "Could not parse the Excel file",
+                f"The file appears to be corrupted or is not a valid Excel file. "
+                f"Technical error: {e}",
+            ) from e
+        except Exception as e:
+            if isinstance(e, ExcelImportError):
+                raise
+            raise ExcelImportError(
+                "Unexpected error loading classrooms file",
+                f"An unexpected error occurred: {type(e).__name__}: {e}",
+            ) from e
+
+        classrooms: dict[str, Classroom] = {}
+        for rec in records:
+            teacher_name = rec.get("Teacher Name")
+            first_name = rec.get("Student First Name")
+            last_name = rec.get("Student Last Name")
+
+            if not teacher_name:
+                raise ExcelImportError(
+                    "Missing Teacher Name in classroom data",
+                    "Each row must have a 'Teacher Name' column.",
+                )
+            if not first_name or not last_name:
+                raise ExcelImportError(
+                    "Missing student name in classroom data",
+                    "Each row must have 'Student First Name' and 'Student Last Name' columns.",
+                )
+
+            if teacher_name not in teacher_dict:
+                raise ExcelImportError(
+                    f"Teacher '{teacher_name}' not found",
+                    "Load the teachers file before loading classrooms.",
+                )
+
+            student_key = f"{first_name}_{last_name}"
+            if student_key not in student_dict:
+                raise ExcelImportError(
+                    f"Student '{first_name} {last_name}' not found",
+                    "Load the students file before loading classrooms.",
+                )
+
+            teacher = teacher_dict[teacher_name]
+            student = student_dict[student_key]
+
+            if teacher.name in classrooms:
+                classrooms[teacher.name].students.append(student)
+            else:
+                classrooms[teacher.name] = Classroom(teacher, [student])
+
+        return list(classrooms.values())
 
     @staticmethod
     def _sheet_to_clean_records(file: pd.ExcelFile, sheet_name: str) -> list[dict]:
         df = file.parse(sheet_name=sheet_name)
         records = []
         for _, row in df.iterrows():
-            # Drop NaN values and convert to dict
             clean_row = row.dropna().to_dict()
-            # Skip empty rows (all values were NaN/blank)
             if clean_row:
                 records.append(clean_row)
         return records

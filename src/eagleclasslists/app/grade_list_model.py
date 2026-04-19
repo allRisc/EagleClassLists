@@ -20,9 +20,16 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import QObject, Signal
 
-from eagleclasslists.classlist import Classroom, GradeList, Student, Teacher
+from eagleclasslists.classlist import (
+    Classroom,
+    GradeList,
+    Student,
+    Teacher,
+)
 
 
 class GradeListModel(QObject):
@@ -36,16 +43,122 @@ class GradeListModel(QObject):
     def __init__(self, grade_list: GradeList) -> None:
         super().__init__()
         self._grade_list = grade_list
+        self._teachers_loaded = False
+        self._students_loaded = False
+        self._classrooms_loaded = False
 
     @property
     def grade_list(self) -> GradeList:
         """Access the underlying GradeList without emitting a signal."""
         return self._grade_list
 
+    @property
+    def teachers_loaded(self) -> bool:
+        """Whether teachers have been loaded from a file."""
+        return self._teachers_loaded
+
+    @property
+    def students_loaded(self) -> bool:
+        """Whether students have been loaded from a file."""
+        return self._students_loaded
+
+    @property
+    def classrooms_loaded(self) -> bool:
+        """Whether classrooms have been loaded from a file."""
+        return self._classrooms_loaded
+
     def set_grade_list(self, grade_list: GradeList) -> None:
         """Replace the entire GradeList and notify all connected views."""
         self._grade_list = grade_list
+        self._reset_loaded_flags()
         self.changed.emit()
+
+    def _reset_loaded_flags(self) -> None:
+        """Reset all loaded-state tracking flags."""
+        self._teachers_loaded = False
+        self._students_loaded = False
+        self._classrooms_loaded = False
+
+    # ------------------------------------------------------------------
+    # Per-entity load
+    # ------------------------------------------------------------------
+
+    def load_teachers(self, filepath: str | Path) -> None:
+        """Load teachers from an Excel file and replace the current list.
+
+        Args:
+            filepath: Path to the teachers Excel file.
+
+        Raises:
+            ExcelImportError: If the file cannot be read or validated.
+        """
+        teachers = GradeList.load_teachers_from_excel(filepath)
+        self._grade_list.teachers = teachers
+        self._teachers_loaded = True
+        self.changed.emit()
+
+    def load_students(self, filepath: str | Path) -> None:
+        """Load students from an Excel file and replace the current list.
+
+        Args:
+            filepath: Path to the students Excel file.
+
+        Raises:
+            ExcelImportError: If the file cannot be read or validated.
+        """
+        students = GradeList.load_students_from_excel(filepath)
+        self._grade_list.students = students
+        self._students_loaded = True
+        self.changed.emit()
+
+    def load_classrooms(self, filepath: str | Path) -> None:
+        """Load classroom assignments from an Excel file.
+
+        Requires that teachers and students are already loaded.
+
+        Args:
+            filepath: Path to the classrooms Excel file.
+
+        Raises:
+            ExcelImportError: If the file cannot be read, validated,
+                or if teacher/student references are missing.
+        """
+        classrooms = GradeList.load_classrooms_from_excel(
+            filepath,
+            self._grade_list.teachers,
+            self._grade_list.students,
+        )
+        self._grade_list.classes = classrooms
+        self._classrooms_loaded = True
+        self.changed.emit()
+
+    # ------------------------------------------------------------------
+    # Per-entity save
+    # ------------------------------------------------------------------
+
+    def save_teachers(self, filepath: str | Path) -> None:
+        """Save teachers to an Excel file.
+
+        Args:
+            filepath: Path to write the teachers Excel file.
+        """
+        self._grade_list.save_teachers_to_excel(filepath)
+
+    def save_students(self, filepath: str | Path) -> None:
+        """Save students to an Excel file.
+
+        Args:
+            filepath: Path to write the students Excel file.
+        """
+        self._grade_list.save_students_to_excel(filepath)
+
+    def save_classrooms(self, filepath: str | Path) -> None:
+        """Save classroom assignments to an Excel file.
+
+        Args:
+            filepath: Path to write the classrooms Excel file.
+        """
+        self._grade_list.save_classrooms_to_excel(filepath)
 
     def remove_student(self, first_name: str, last_name: str) -> None:
         """Remove a student from the grade list and all classrooms.

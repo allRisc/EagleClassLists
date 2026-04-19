@@ -235,7 +235,11 @@ class TeachersView(QWidget):
         teachers = self.model.grade_list.teachers
 
         if not teachers:
-            label = QLabel("No teachers added yet.")
+            if self.model.teachers_loaded:
+                msg = "No teachers in the loaded file."
+            else:
+                msg = "No teachers loaded. Use File > Open Teachers to load."
+            label = QLabel(msg)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setStyleSheet("font-size: 14px; color: #888; padding: 20px;")
             self.scroll_layout.addWidget(label)

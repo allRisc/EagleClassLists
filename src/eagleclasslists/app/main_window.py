@@ -65,15 +65,33 @@ class MainWindow(QMainWindow):
         new_action.triggered.connect(self._new_grade_list)
         file_menu.addAction(new_action)
 
-        open_action = QAction("Open...", self)
-        open_action.setShortcut(QKeySequence.StandardKey.Open)
-        open_action.triggered.connect(self._load_grade_list)
-        file_menu.addAction(open_action)
+        file_menu.addSeparator()
 
-        save_action = QAction("Save", self)
-        save_action.setShortcut(QKeySequence.StandardKey.Save)
-        save_action.triggered.connect(self._save_grade_list)
-        file_menu.addAction(save_action)
+        open_teachers = QAction("Open Teachers...", self)
+        open_teachers.triggered.connect(self._load_teachers)
+        file_menu.addAction(open_teachers)
+
+        open_students = QAction("Open Students...", self)
+        open_students.triggered.connect(self._load_students)
+        file_menu.addAction(open_students)
+
+        open_classrooms = QAction("Open Classrooms...", self)
+        open_classrooms.triggered.connect(self._load_classrooms)
+        file_menu.addAction(open_classrooms)
+
+        file_menu.addSeparator()
+
+        save_teachers = QAction("Save Teachers...", self)
+        save_teachers.triggered.connect(self._save_teachers)
+        file_menu.addAction(save_teachers)
+
+        save_students = QAction("Save Students...", self)
+        save_students.triggered.connect(self._save_students)
+        file_menu.addAction(save_students)
+
+        save_classrooms = QAction("Save Classrooms...", self)
+        save_classrooms.triggered.connect(self._save_classrooms)
+        file_menu.addAction(save_classrooms)
 
         file_menu.addSeparator()
 
@@ -125,11 +143,15 @@ class MainWindow(QMainWindow):
         """Create a new empty grade list."""
         self.model.set_grade_list(GradeList(teachers=[], students=[]))
 
-    def _load_grade_list(self) -> None:
-        """Load a grade list from an Excel file."""
+    # ------------------------------------------------------------------
+    # Per-entity load handlers
+    # ------------------------------------------------------------------
+
+    def _load_teachers(self) -> None:
+        """Load teachers from an Excel file."""
         filepath, _ = QFileDialog.getOpenFileName(
             self,
-            "Open Grade List",
+            "Open Teachers",
             "",
             "Excel Files (*.xlsx *.xls)",
         )
@@ -137,18 +159,72 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            grade_list = GradeList.from_excel(Path(filepath))
-            self.model.set_grade_list(grade_list)
+            self.model.load_teachers(Path(filepath))
         except ExcelImportError as e:
             QMessageBox.critical(self, "Open Failed", f"{e.message}\n\n{e.details or ''}")
         except Exception as e:
             QMessageBox.critical(self, "Open Failed", f"Unexpected error: {e}")
 
-    def _save_grade_list(self) -> None:
-        """Save the current grade list to an Excel file."""
+    def _load_students(self) -> None:
+        """Load students from an Excel file."""
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Students",
+            "",
+            "Excel Files (*.xlsx *.xls)",
+        )
+        if not filepath:
+            return
+
+        try:
+            self.model.load_students(Path(filepath))
+        except ExcelImportError as e:
+            QMessageBox.critical(self, "Open Failed", f"{e.message}\n\n{e.details or ''}")
+        except Exception as e:
+            QMessageBox.critical(self, "Open Failed", f"Unexpected error: {e}")
+
+    def _load_classrooms(self) -> None:
+        """Load classroom assignments from an Excel file."""
+        if not self.model.teachers_loaded:
+            QMessageBox.warning(
+                self,
+                "Teachers Required",
+                "Please load teachers (File > Open Teachers...) before loading classrooms.",
+            )
+            return
+        if not self.model.students_loaded:
+            QMessageBox.warning(
+                self,
+                "Students Required",
+                "Please load students (File > Open Students...) before loading classrooms.",
+            )
+            return
+
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Classrooms",
+            "",
+            "Excel Files (*.xlsx *.xls)",
+        )
+        if not filepath:
+            return
+
+        try:
+            self.model.load_classrooms(Path(filepath))
+        except ExcelImportError as e:
+            QMessageBox.critical(self, "Open Failed", f"{e.message}\n\n{e.details or ''}")
+        except Exception as e:
+            QMessageBox.critical(self, "Open Failed", f"Unexpected error: {e}")
+
+    # ------------------------------------------------------------------
+    # Per-entity save handlers
+    # ------------------------------------------------------------------
+
+    def _save_teachers(self) -> None:
+        """Save teachers to an Excel file."""
         filepath, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Grade List",
+            "Save Teachers",
             "",
             "Excel Files (*.xlsx)",
         )
@@ -156,6 +232,38 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self.model.grade_list.save_to_excel(Path(filepath))
+            self.model.save_teachers(Path(filepath))
+        except Exception as e:
+            QMessageBox.critical(self, "Save Failed", f"Failed to save: {e}")
+
+    def _save_students(self) -> None:
+        """Save students to an Excel file."""
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Students",
+            "",
+            "Excel Files (*.xlsx)",
+        )
+        if not filepath:
+            return
+
+        try:
+            self.model.save_students(Path(filepath))
+        except Exception as e:
+            QMessageBox.critical(self, "Save Failed", f"Failed to save: {e}")
+
+    def _save_classrooms(self) -> None:
+        """Save classroom assignments to an Excel file."""
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Classrooms",
+            "",
+            "Excel Files (*.xlsx)",
+        )
+        if not filepath:
+            return
+
+        try:
+            self.model.save_classrooms(Path(filepath))
         except Exception as e:
             QMessageBox.critical(self, "Save Failed", f"Failed to save: {e}")
