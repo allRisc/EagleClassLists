@@ -23,7 +23,7 @@ build-backend = "uv_build"
 
 [project]
 name = "EagleClassLists"
-version = "0.2.0"
+version = "0.3.0"
 description = "EagleClassLists is a tool used to aid in the creation of class lists for schools."
 readme = "README.md"
 authors = [
