@@ -26,8 +26,11 @@ import pydantic
 import pytest
 
 from eagleclasslists.data.settings import (
+    BUILTIN_PRESET_NAMES,
+    BUILTIN_PRESETS,
     DEFAULT_PRESET,
     DEFAULT_PRESET_NAME,
+    ESTES_PRESET,
     REQUIRED_CLASSROOM_FIELDS,
     REQUIRED_STUDENT_FIELDS,
     REQUIRED_TEACHER_FIELDS,
@@ -43,6 +46,23 @@ class TestColumnMappingPreset:
 
     def test_default_preset_has_correct_name(self) -> None:
         assert DEFAULT_PRESET.name == "Default"
+
+    def test_estes_preset_exists(self) -> None:
+        assert ESTES_PRESET.name == "Estes Format"
+        assert ESTES_PRESET.students_sheet == "Student Data"
+        assert ESTES_PRESET.teachers_sheet == "Teacher Data"
+        assert ESTES_PRESET.student_columns["first_name"] == "Student First"
+        assert ESTES_PRESET.student_columns["gender"] == "G"
+
+    def test_builtin_presets_list(self) -> None:
+        assert len(BUILTIN_PRESETS) == 2
+        preset_names = {p.name for p in BUILTIN_PRESETS}
+        assert "Default" in preset_names
+        assert "Estes Format" in preset_names
+
+    def test_builtin_preset_names_set(self) -> None:
+        assert "Default" in BUILTIN_PRESET_NAMES
+        assert "Estes Format" in BUILTIN_PRESET_NAMES
 
     def test_default_preset_teacher_columns(self) -> None:
         assert DEFAULT_PRESET.teacher_columns == {
@@ -205,11 +225,14 @@ class TestRenameRecords:
 class TestColumnMappingStore:
     """Test suite for ColumnMappingStore persistence."""
 
-    def test_load_creates_default_preset(self, tmp_path: Path) -> None:
+    def test_load_creates_builtin_presets(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
         presets = store.list_presets()
-        assert len(presets) == 1
-        assert presets[0].name == DEFAULT_PRESET_NAME
+        # Should have all built-in presets (Default + Estes Format = 2)
+        assert len(presets) == len(BUILTIN_PRESETS)
+        preset_names = {p.name for p in presets}
+        assert DEFAULT_PRESET_NAME in preset_names
+        assert "Estes Format" in preset_names
 
     def test_active_preset_defaults_to_default(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
@@ -218,7 +241,7 @@ class TestColumnMappingStore:
     def test_add_custom_preset(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
         custom = ColumnMappingPreset(
-            name="Estes",
+            name="My Custom Preset",
             student_columns={
                 "first_name": "FName",
                 "last_name": "LName",
@@ -229,8 +252,9 @@ class TestColumnMappingStore:
             },
         )
         store.add_preset(custom)
-        assert len(store.list_presets()) == 2
-        assert store.get_preset("Estes").student_columns["first_name"] == "FName"
+        # Should have built-in presets (2) + custom preset (1) = 3
+        assert len(store.list_presets()) == len(BUILTIN_PRESETS) + 1
+        assert store.get_preset("My Custom Preset").student_columns["first_name"] == "FName"
 
     def test_set_active_by_name(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
@@ -247,11 +271,13 @@ class TestColumnMappingStore:
 
     def test_delete_custom_preset(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
-        custom = ColumnMappingPreset(name="Estes")
+        custom = ColumnMappingPreset(name="My Custom Preset")
         store.add_preset(custom)
-        assert len(store.list_presets()) == 2
-        store.delete_preset("Estes")
-        assert len(store.list_presets()) == 1
+        # Should have built-in presets (2) + custom preset (1) = 3
+        assert len(store.list_presets()) == len(BUILTIN_PRESETS) + 1
+        store.delete_preset("My Custom Preset")
+        # After deletion, should only have built-in presets (2)
+        assert len(store.list_presets()) == len(BUILTIN_PRESETS)
 
     def test_delete_default_preset_raises(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
@@ -263,22 +289,31 @@ class TestColumnMappingStore:
         with pytest.raises(KeyError):
             store.delete_preset("Nonexistent")
 
-    def test_overwrite_default_raises(self, tmp_path: Path) -> None:
+    def test_overwrite_builtin_raises(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
+        # Try to overwrite the Default preset
         new_default = ColumnMappingPreset(name="Default", students_sheet="Custom")
         with pytest.raises(ValueError):
             store.add_preset(new_default)
 
+    def test_overwrite_estes_builtin_raises(self, tmp_path: Path) -> None:
+        store = ColumnMappingStore(config_dir=tmp_path)
+        # Try to overwrite the Estes Format preset
+        new_estes = ColumnMappingPreset(name="Estes Format", students_sheet="Custom")
+        with pytest.raises(ValueError):
+            store.add_preset(new_estes)
+
     def test_persistence_to_disk(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
-        custom = ColumnMappingPreset(name="Estes", students_sheet="Students Sheet")
+        custom = ColumnMappingPreset(name="My Custom", students_sheet="Students Sheet")
         store.add_preset(custom)
-        store.set_active_by_name("Estes")
+        store.set_active_by_name("My Custom")
 
         store2 = ColumnMappingStore(config_dir=tmp_path)
-        assert store2.active_preset.name == "Estes"
+        assert store2.active_preset.name == "My Custom"
         assert store2.active_preset.students_sheet == "Students Sheet"
-        assert len(store2.list_presets()) == 2
+        # Should have built-in presets (2) + custom preset (1) = 3
+        assert len(store2.list_presets()) == len(BUILTIN_PRESETS) + 1
 
     def test_active_reverts_on_delete(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)
@@ -297,7 +332,8 @@ class TestColumnMappingStore:
 
         store = ColumnMappingStore(config_dir=config_dir)
         assert store.active_preset.name == DEFAULT_PRESET_NAME
-        assert len(store.list_presets()) == 1
+        # Should still have all built-in presets
+        assert len(store.list_presets()) == len(BUILTIN_PRESETS)
 
     def test_active_preset_setter(self, tmp_path: Path) -> None:
         store = ColumnMappingStore(config_dir=tmp_path)

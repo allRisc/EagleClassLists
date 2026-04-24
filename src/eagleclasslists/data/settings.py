@@ -170,6 +170,49 @@ class ColumnMappingPreset(pydantic.BaseModel):
 DEFAULT_PRESET = ColumnMappingPreset(name="Default")
 """The built-in default column mapping preset matching the original format."""
 
+# Estes Format preset with custom column headers
+ESTES_PRESET = ColumnMappingPreset(
+    name="Estes Format",
+    students_sheet="Student Data",
+    student_columns={
+        "first_name": "Student First",
+        "last_name": "Student Last",
+        "gender": "G",
+        "math": "Math Level",
+        "ela": "ELA Level",
+        "behavior": "Behavior Level",
+        "grade": "Grade",
+        "teacher": "Teacher",
+        "cluster": "Cluster",
+        "resource": "Resource",
+        "speech": "Speech",
+        "exclusions": "Exclusions",
+    },
+    teachers_sheet="Teacher Data",
+    teacher_columns={
+        "name": "Teacher Name",
+        "grade": "Grade",
+        "clusters": "Clusters",
+    },
+    classrooms_sheet="Classroom Data",
+    classroom_columns={
+        "teacher_name": "Teacher Name",
+        "teacher_grade": "Teacher Grade",
+        "student_first_name": "Student First Name",
+        "student_last_name": "Student Last Name",
+        "student_grade": "Student Grade",
+    },
+)
+"""Estes Format preset with custom column headers for Estes Elementary."""
+
+# List of all built-in presets available out of the box
+BUILTIN_PRESETS: list[ColumnMappingPreset] = [DEFAULT_PRESET, ESTES_PRESET]
+"""List of built-in presets that cannot be deleted or modified."""
+
+# Set of built-in preset names for quick lookup
+BUILTIN_PRESET_NAMES: set[str] = {p.name for p in BUILTIN_PRESETS}
+"""Set of built-in preset names for quick membership testing."""
+
 DEFAULT_PRESET_NAME = "Default"
 """The name of the built-in default preset (cannot be deleted)."""
 
@@ -246,10 +289,30 @@ class ColumnMappingStore:
         self._save_active_name()
 
     def list_presets(self) -> list[ColumnMappingPreset]:
-        """Return all available presets, always including the default."""
+        """Return all available presets, including built-in and custom."""
         if not self._loaded:
             self.load()
         return list(self._presets.values())
+
+    def list_builtin_presets(self) -> list[ColumnMappingPreset]:
+        """Return only built-in presets that cannot be modified."""
+        if not self._loaded:
+            self.load()
+        return [
+            self._presets[name]
+            for name in BUILTIN_PRESET_NAMES
+            if name in self._presets
+        ]
+
+    def list_custom_presets(self) -> list[ColumnMappingPreset]:
+        """Return only user-created custom presets that can be modified."""
+        if not self._loaded:
+            self.load()
+        return [
+            preset
+            for name, preset in self._presets.items()
+            if name not in BUILTIN_PRESET_NAMES
+        ]
 
     def get_preset(self, name: str) -> ColumnMappingPreset:
         """Return a preset by name.
@@ -264,32 +327,32 @@ class ColumnMappingStore:
     def add_preset(self, preset: ColumnMappingPreset) -> None:
         """Add a new preset or update an existing one.
 
-        The default preset cannot be overwritten.
+        Built-in presets cannot be overwritten.
 
         Raises:
-            ValueError: If trying to overwrite the default preset.
+            ValueError: If trying to overwrite a built-in preset.
         """
         if not self._loaded:
             self.load()
-        if preset.name == DEFAULT_PRESET_NAME and DEFAULT_PRESET_NAME in self._presets:
-            raise ValueError(f"Cannot overwrite the '{DEFAULT_PRESET_NAME}' preset")
+        if preset.name in BUILTIN_PRESET_NAMES:
+            raise ValueError(f"Cannot overwrite the built-in '{preset.name}' preset")
         self._presets[preset.name] = preset
         self._save_presets()
 
     def delete_preset(self, name: str) -> None:
         """Delete a preset by name.
 
-        The default preset cannot be deleted. If the active preset is deleted,
+        Built-in presets cannot be deleted. If the active preset is deleted,
         the active preset reverts to the default.
 
         Raises:
-            ValueError: If trying to delete the default preset.
+            ValueError: If trying to delete a built-in preset.
             KeyError: If no preset with the given name exists.
         """
         if not self._loaded:
             self.load()
-        if name == DEFAULT_PRESET_NAME:
-            raise ValueError(f"Cannot delete the '{DEFAULT_PRESET_NAME}' preset")
+        if name in BUILTIN_PRESET_NAMES:
+            raise ValueError(f"Cannot delete the built-in '{name}' preset")
         if name not in self._presets:
             raise KeyError(f"Preset '{name}' not found")
         del self._presets[name]
@@ -299,19 +362,25 @@ class ColumnMappingStore:
         self._save_presets()
 
     def load(self) -> None:
-        """Load presets from disk, always ensuring the default is present."""
+        """Load presets from disk, always ensuring built-in presets are present."""
         if self._loaded:
             return
 
-        self._presets = {DEFAULT_PRESET_NAME: DEFAULT_PRESET.model_copy()}
+        # Start with all built-in presets (these cannot be deleted or modified)
+        self._presets = {
+            preset.name: preset.model_copy() for preset in BUILTIN_PRESETS
+        }
 
+        # Load custom presets from disk, but don't override built-ins
         presets_file = self._config_dir / "column_mappings.json"
         if presets_file.exists():
             try:
                 data = json.loads(presets_file.read_text(encoding="utf-8"))
                 for item in data.get("presets", []):
                     preset = ColumnMappingPreset.model_validate(item)
-                    self._presets[preset.name] = preset
+                    # Only add custom presets, never override built-ins
+                    if preset.name not in BUILTIN_PRESET_NAMES:
+                        self._presets[preset.name] = preset
                 self._active_preset_name = data.get("active_preset", DEFAULT_PRESET_NAME)
             except (json.JSONDecodeError, pydantic.ValidationError):
                 pass
@@ -322,13 +391,14 @@ class ColumnMappingStore:
         self._loaded = True
 
     def _save_presets(self) -> None:
-        """Persist custom presets (not the default) to disk."""
+        """Persist custom presets (not built-in) to disk."""
         self._config_dir.mkdir(parents=True, exist_ok=True)
         presets_file = self._config_dir / "column_mappings.json"
+        # Only save custom presets (not built-in ones)
         custom_presets = [
             p.model_dump()
             for name, p in self._presets.items()
-            if name != DEFAULT_PRESET_NAME
+            if name not in BUILTIN_PRESET_NAMES
         ]
         data = {
             "active_preset": self._active_preset_name,
