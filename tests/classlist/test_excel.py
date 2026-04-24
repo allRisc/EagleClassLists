@@ -24,19 +24,27 @@ from pathlib import Path
 
 import pytest
 
-from eagleclasslists.classlist import (
-    ELA,
-    Behavior,
+from eagleclasslists.data.classlist import (
     Classroom,
-    Cluster,
-    ExcelImportError,
-    Gender,
-    GradeList,
-    Math,
     Student,
     Teacher,
 )
-from eagleclasslists.settings import ColumnMappingPreset
+from eagleclasslists.data.errors import ExcelImportError
+from eagleclasslists.data.importer import (
+    load_classrooms_from_excel,
+    load_students_from_excel,
+    load_teachers_from_excel,
+    save_classrooms_to_excel,
+    save_students_to_excel,
+    save_teachers_to_excel,
+)
+from eagleclasslists.data.settings import ColumnMappingPreset
+from eagleclasslists.data.types import (
+    Academic,
+    Behavior,
+    Cluster,
+    Gender,
+)
 
 
 class TestTeachersExcel:
@@ -50,10 +58,9 @@ class TestTeachersExcel:
         ]
 
     def test_roundtrip_teachers(self, sample_teachers: list[Teacher], tmp_path: Path) -> None:
-        grade_list = GradeList(teachers=sample_teachers, students=[])
         filepath = tmp_path / "teachers.xlsx"
-        grade_list.save_teachers_to_excel(filepath)
-        loaded = GradeList.load_teachers_from_excel(filepath)
+        save_teachers_to_excel(sample_teachers, filepath)
+        loaded = load_teachers_from_excel(filepath)
 
         assert len(loaded) == 2
         names = {t.name for t in loaded}
@@ -65,37 +72,33 @@ class TestTeachersExcel:
         assert Cluster.EL in smith.clusters
 
     def test_empty_teachers(self, tmp_path: Path) -> None:
-        grade_list = GradeList(teachers=[], students=[])
         filepath = tmp_path / "empty_teachers.xlsx"
-        grade_list.save_teachers_to_excel(filepath)
-        loaded = GradeList.load_teachers_from_excel(filepath)
+        save_teachers_to_excel([], filepath)
+        loaded = load_teachers_from_excel(filepath)
         assert len(loaded) == 0
 
     def test_teacher_without_clusters(self, tmp_path: Path) -> None:
         teacher = Teacher(name="No Clusters", clusters=[])
-        grade_list = GradeList(teachers=[teacher], students=[])
         filepath = tmp_path / "no_clusters.xlsx"
-        grade_list.save_teachers_to_excel(filepath)
-        loaded = GradeList.load_teachers_from_excel(filepath)
+        save_teachers_to_excel([teacher], filepath)
+        loaded = load_teachers_from_excel(filepath)
         assert len(loaded) == 1
         assert loaded[0].name == "No Clusters"
         assert len(loaded[0].clusters) == 0
 
     def test_multiple_clusters_per_teacher(self, tmp_path: Path) -> None:
         teacher = Teacher(name="Multi Cluster", clusters=[Cluster.AC, Cluster.GEM, Cluster.EL])
-        grade_list = GradeList(teachers=[teacher], students=[])
         filepath = tmp_path / "multi_cluster.xlsx"
-        grade_list.save_teachers_to_excel(filepath)
-        loaded = GradeList.load_teachers_from_excel(filepath)
+        save_teachers_to_excel([teacher], filepath)
+        loaded = load_teachers_from_excel(filepath)
         assert len(loaded[0].clusters) == 3
         assert all(c in loaded[0].clusters for c in [Cluster.AC, Cluster.GEM, Cluster.EL])
 
     def test_special_characters_in_teacher_names(self, tmp_path: Path) -> None:
         teacher = Teacher(name="O'Connor-Smith", clusters=[])
-        grade_list = GradeList(teachers=[teacher], students=[])
         filepath = tmp_path / "special_names.xlsx"
-        grade_list.save_teachers_to_excel(filepath)
-        loaded = GradeList.load_teachers_from_excel(filepath)
+        save_teachers_to_excel([teacher], filepath)
+        loaded = load_teachers_from_excel(filepath)
         assert loaded[0].name == "O'Connor-Smith"
 
     def test_invalid_teacher_data(self, tmp_path: Path) -> None:
@@ -107,7 +110,7 @@ class TestTeachersExcel:
             df.to_excel(writer, sheet_name="Teachers", index=False)
 
         with pytest.raises(ExcelImportError) as exc_info:
-            GradeList.load_teachers_from_excel(filepath)
+            load_teachers_from_excel(filepath)
         assert "validation failed" in str(exc_info.value).lower()
 
 
@@ -121,8 +124,8 @@ class TestStudentsExcel:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
                 cluster=Cluster.GEM,
                 resource=True,
@@ -132,8 +135,8 @@ class TestStudentsExcel:
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                math=Math.MEDIUM,
-                ela=ELA.MEDIUM,
+                math=Academic.MEDIUM,
+                ela=Academic.MEDIUM,
                 behavior=Behavior.MEDIUM,
                 cluster=None,
                 resource=False,
@@ -143,8 +146,8 @@ class TestStudentsExcel:
                 first_name="Charlie",
                 last_name="Clark",
                 gender=Gender.MALE,
-                math=Math.LOW,
-                ela=ELA.LOW,
+                math=Academic.LOW,
+                ela=Academic.LOW,
                 behavior=Behavior.LOW,
                 cluster=Cluster.EL,
                 resource=True,
@@ -153,27 +156,25 @@ class TestStudentsExcel:
         ]
 
     def test_roundtrip_students(self, sample_students: list[Student], tmp_path: Path) -> None:
-        grade_list = GradeList(teachers=[], students=sample_students)
         filepath = tmp_path / "students.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel(sample_students, filepath)
+        loaded = load_students_from_excel(filepath)
 
         assert len(loaded) == 3
 
         alice = next(s for s in loaded if s.first_name == "Alice" and s.last_name == "Anderson")
         assert alice.gender == Gender.FEMALE
-        assert alice.math == Math.HIGH
-        assert alice.ela == ELA.HIGH
+        assert alice.math == Academic.HIGH
+        assert alice.ela == Academic.HIGH
         assert alice.behavior == Behavior.HIGH
         assert alice.cluster == Cluster.GEM
         assert alice.resource is True
         assert alice.speech is False
 
     def test_empty_students(self, tmp_path: Path) -> None:
-        grade_list = GradeList(teachers=[], students=[])
         filepath = tmp_path / "empty_students.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel([], filepath)
+        loaded = load_students_from_excel(filepath)
         assert len(loaded) == 0
 
     def test_student_without_cluster(self, tmp_path: Path) -> None:
@@ -181,15 +182,14 @@ class TestStudentsExcel:
             first_name="No",
             last_name="Cluster",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=None,
         )
-        grade_list = GradeList(teachers=[], students=[student])
         filepath = tmp_path / "no_cluster.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel([student], filepath)
+        loaded = load_students_from_excel(filepath)
         assert loaded[0].cluster is None
 
     def test_boolean_fields_true(self, tmp_path: Path) -> None:
@@ -197,16 +197,15 @@ class TestStudentsExcel:
             first_name="Both",
             last_name="Name",
             gender=Gender.MALE,
-            math=Math.MEDIUM,
-            ela=ELA.MEDIUM,
+            math=Academic.MEDIUM,
+            ela=Academic.MEDIUM,
             behavior=Behavior.MEDIUM,
             resource=True,
             speech=True,
         )
-        grade_list = GradeList(teachers=[], students=[student])
         filepath = tmp_path / "both_true.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel([student], filepath)
+        loaded = load_students_from_excel(filepath)
         assert loaded[0].resource is True
         assert loaded[0].speech is True
 
@@ -215,24 +214,23 @@ class TestStudentsExcel:
             first_name="Both",
             last_name="Name",
             gender=Gender.MALE,
-            math=Math.MEDIUM,
-            ela=ELA.MEDIUM,
+            math=Academic.MEDIUM,
+            ela=Academic.MEDIUM,
             behavior=Behavior.MEDIUM,
             resource=False,
             speech=False,
         )
-        grade_list = GradeList(teachers=[], students=[student])
         filepath = tmp_path / "both_false.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel([student], filepath)
+        loaded = load_students_from_excel(filepath)
         assert loaded[0].resource is False
         assert loaded[0].speech is False
 
     def test_all_enum_values(self, tmp_path: Path) -> None:
         students = []
         for gender in Gender:
-            for math in Math:
-                for ela in ELA:
+            for math in Academic:
+                for ela in Academic:
                     for behavior in Behavior:
                         student = Student(
                             first_name=f"{gender.value}",
@@ -244,17 +242,16 @@ class TestStudentsExcel:
                         )
                         students.append(student)
 
-        grade_list = GradeList(teachers=[], students=students)
         filepath = tmp_path / "enums.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel(students, filepath)
+        loaded = load_students_from_excel(filepath)
 
         for student in loaded:
             expected_gender = Gender(student.first_name)
             math_str, ela_str, behavior_str = student.last_name.split("_")
             assert student.gender == expected_gender
-            assert student.math == Math(math_str)
-            assert student.ela == ELA(ela_str)
+            assert student.math == Academic(math_str)
+            assert student.ela == Academic(ela_str)
             assert student.behavior == Behavior(behavior_str)
 
     def test_special_characters_in_names(self, tmp_path: Path) -> None:
@@ -262,14 +259,13 @@ class TestStudentsExcel:
             first_name="Jose",
             last_name="Garcia-Munoz",
             gender=Gender.MALE,
-            math=Math.MEDIUM,
-            ela=ELA.MEDIUM,
+            math=Academic.MEDIUM,
+            ela=Academic.MEDIUM,
             behavior=Behavior.MEDIUM,
         )
-        grade_list = GradeList(teachers=[], students=[student])
         filepath = tmp_path / "special_chars.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel([student], filepath)
+        loaded = load_students_from_excel(filepath)
         assert loaded[0].first_name == "Jose"
         assert loaded[0].last_name == "Garcia-Munoz"
 
@@ -289,7 +285,7 @@ class TestStudentsExcel:
             df.to_excel(writer, sheet_name="Students", index=False)
 
         with pytest.raises(ExcelImportError) as exc_info:
-            GradeList.load_students_from_excel(filepath)
+            load_students_from_excel(filepath)
         assert "validation failed" in str(exc_info.value).lower()
 
 
@@ -310,24 +306,24 @@ class TestClassroomsExcel:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             ),
             Student(
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                math=Math.MEDIUM,
-                ela=ELA.MEDIUM,
+                math=Academic.MEDIUM,
+                ela=Academic.MEDIUM,
                 behavior=Behavior.MEDIUM,
             ),
             Student(
                 first_name="Charlie",
                 last_name="Clark",
                 gender=Gender.MALE,
-                math=Math.LOW,
-                ela=ELA.LOW,
+                math=Academic.LOW,
+                ela=Academic.LOW,
                 behavior=Behavior.LOW,
             ),
         ]
@@ -343,15 +339,11 @@ class TestClassroomsExcel:
             students=[sample_students[0], sample_students[1]],
         )
         classroom2 = Classroom(teacher=sample_teachers[1], students=[sample_students[2]])
-        grade_list = GradeList(
-            classes=[classroom1, classroom2],
-            teachers=sample_teachers,
-            students=sample_students,
-        )
+        classes = [classroom1, classroom2]
 
         filepath = tmp_path / "classrooms.xlsx"
-        grade_list.save_classrooms_to_excel(filepath)
-        loaded = GradeList.load_classrooms_from_excel(
+        save_classrooms_to_excel(classes, filepath)
+        loaded = load_classrooms_from_excel(
             filepath, sample_teachers, sample_students
         )
 
@@ -368,10 +360,9 @@ class TestClassroomsExcel:
         sample_students: list[Student],
         tmp_path: Path,
     ) -> None:
-        grade_list = GradeList(teachers=sample_teachers, students=sample_students)
         filepath = tmp_path / "empty_classrooms.xlsx"
-        grade_list.save_classrooms_to_excel(filepath)
-        loaded = GradeList.load_classrooms_from_excel(
+        save_classrooms_to_excel([], filepath)
+        loaded = load_classrooms_from_excel(
             filepath, sample_teachers, sample_students
         )
         assert len(loaded) == 0
@@ -383,14 +374,9 @@ class TestClassroomsExcel:
         tmp_path: Path,
     ) -> None:
         classroom = Classroom(teacher=sample_teachers[0], students=[sample_students[0]])
-        grade_list = GradeList(
-            classes=[classroom],
-            teachers=sample_teachers,
-            students=sample_students,
-        )
         filepath = tmp_path / "single.xlsx"
-        grade_list.save_classrooms_to_excel(filepath)
-        loaded = GradeList.load_classrooms_from_excel(
+        save_classrooms_to_excel([classroom], filepath)
+        loaded = load_classrooms_from_excel(
             filepath, sample_teachers, sample_students
         )
         assert len(loaded) == 1
@@ -415,7 +401,7 @@ class TestClassroomsExcel:
             df.to_excel(writer, sheet_name="Classrooms", index=False)
 
         with pytest.raises(ExcelImportError) as exc_info:
-            GradeList.load_classrooms_from_excel(filepath, sample_teachers, sample_students)
+            load_classrooms_from_excel(filepath, sample_teachers, sample_students)
         assert "not found" in str(exc_info.value).lower()
 
     def test_missing_student_reference(
@@ -436,7 +422,7 @@ class TestClassroomsExcel:
             df.to_excel(writer, sheet_name="Classrooms", index=False)
 
         with pytest.raises(ExcelImportError) as exc_info:
-            GradeList.load_classrooms_from_excel(filepath, sample_teachers, sample_students)
+            load_classrooms_from_excel(filepath, sample_teachers, sample_students)
         assert "not found" in str(exc_info.value).lower()
 
 
@@ -448,8 +434,8 @@ class TestExclusionsExcel:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown"],
         )
@@ -457,18 +443,15 @@ class TestExclusionsExcel:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.MEDIUM,
-            ela=ELA.MEDIUM,
+            math=Academic.MEDIUM,
+            ela=Academic.MEDIUM,
             behavior=Behavior.MEDIUM,
         )
-        grade_list = GradeList(
-            teachers=[],
-            students=[student_with_exclusion, other_student],
-        )
+        students = [student_with_exclusion, other_student]
 
         filepath = tmp_path / "single_exclusion.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel(students, filepath)
+        loaded = load_students_from_excel(filepath)
 
         loaded_student = next(
             s for s in loaded if s.first_name == "Alice" and s.last_name == "Anderson"
@@ -481,16 +464,15 @@ class TestExclusionsExcel:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown", "Charlie Clark", "David Davis"],
         )
-        grade_list = GradeList(teachers=[], students=[student])
 
         filepath = tmp_path / "multiple_exclusions.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel([student], filepath)
+        loaded = load_students_from_excel(filepath)
 
         assert len(loaded[0].exclusions) == 3
         assert "Bob Brown" in loaded[0].exclusions
@@ -502,16 +484,15 @@ class TestExclusionsExcel:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=[],
         )
-        grade_list = GradeList(teachers=[], students=[student])
 
         filepath = tmp_path / "no_exclusions.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel([student], filepath)
+        loaded = load_students_from_excel(filepath)
 
         assert len(loaded[0].exclusions) == 0
 
@@ -520,16 +501,15 @@ class TestExclusionsExcel:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Jose Garcia-Munoz", "O'Connor Smith"],
         )
-        grade_list = GradeList(teachers=[], students=[student])
 
         filepath = tmp_path / "special_chars_exclusions.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel([student], filepath)
+        loaded = load_students_from_excel(filepath)
 
         assert len(loaded[0].exclusions) == 2
         assert "Jose Garcia-Munoz" in loaded[0].exclusions
@@ -553,7 +533,7 @@ class TestExclusionsExcel:
             )
             students_df.to_excel(writer, sheet_name="Students", index=False)
 
-        loaded = GradeList.load_students_from_excel(filepath)
+        loaded = load_students_from_excel(filepath)
 
         alice = next(
             s for s in loaded if s.first_name == "Alice" and s.last_name == "Anderson"
@@ -584,13 +564,13 @@ class TestExcelImportError:
     def test_file_not_found_teachers(self, tmp_path: Path) -> None:
         missing = tmp_path / "does_not_exist.xlsx"
         with pytest.raises(ExcelImportError) as exc_info:
-            GradeList.load_teachers_from_excel(missing)
+            load_teachers_from_excel(missing)
         assert "not found" in str(exc_info.value).lower()
 
     def test_file_not_found_students(self, tmp_path: Path) -> None:
         missing = tmp_path / "does_not_exist.xlsx"
         with pytest.raises(ExcelImportError) as exc_info:
-            GradeList.load_students_from_excel(missing)
+            load_students_from_excel(missing)
         assert "not found" in str(exc_info.value).lower()
 
     def test_file_not_found_classrooms(
@@ -599,7 +579,7 @@ class TestExcelImportError:
     ) -> None:
         missing = tmp_path / "does_not_exist.xlsx"
         with pytest.raises(ExcelImportError) as exc_info:
-            GradeList.load_classrooms_from_excel(missing, [], [])
+            load_classrooms_from_excel(missing, [], [])
         assert "not found" in str(exc_info.value).lower()
 
 
@@ -646,10 +626,9 @@ class TestCustomPresetTeachers:
     def test_roundtrip_teachers_custom_preset(
         self, sample_teachers: list[Teacher], tmp_path: Path
     ) -> None:
-        grade_list = GradeList(teachers=sample_teachers, students=[])
         filepath = tmp_path / "teachers_custom.xlsx"
-        grade_list.save_teachers_to_excel(filepath, preset=ESTES_PRESET)
-        loaded = GradeList.load_teachers_from_excel(filepath, preset=ESTES_PRESET)
+        save_teachers_to_excel(sample_teachers, filepath, preset=ESTES_PRESET)
+        loaded = load_teachers_from_excel(filepath, preset=ESTES_PRESET)
 
         assert len(loaded) == 2
         names = {t.name for t in loaded}
@@ -665,9 +644,8 @@ class TestCustomPresetTeachers:
     ) -> None:
         import pandas as pd
 
-        grade_list = GradeList(teachers=sample_teachers, students=[])
         filepath = tmp_path / "teachers_custom.xlsx"
-        grade_list.save_teachers_to_excel(filepath, preset=ESTES_PRESET)
+        save_teachers_to_excel(sample_teachers, filepath, preset=ESTES_PRESET)
 
         with pd.ExcelFile(filepath) as ef:
             assert "Teachers" in ef.sheet_names
@@ -677,9 +655,8 @@ class TestCustomPresetTeachers:
     ) -> None:
         import pandas as pd
 
-        grade_list = GradeList(teachers=sample_teachers, students=[])
         filepath = tmp_path / "teachers_custom.xlsx"
-        grade_list.save_teachers_to_excel(filepath, preset=ESTES_PRESET)
+        save_teachers_to_excel(sample_teachers, filepath, preset=ESTES_PRESET)
 
         df = pd.read_excel(filepath, sheet_name="Teachers")
         assert "Teacher Name" in df.columns
@@ -698,8 +675,8 @@ class TestCustomPresetStudents:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
                 cluster=Cluster.GEM,
                 resource=True,
@@ -710,8 +687,8 @@ class TestCustomPresetStudents:
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                math=Math.MEDIUM,
-                ela=ELA.MEDIUM,
+                math=Academic.MEDIUM,
+                ela=Academic.MEDIUM,
                 behavior=Behavior.MEDIUM,
             ),
         ]
@@ -719,16 +696,15 @@ class TestCustomPresetStudents:
     def test_roundtrip_students_custom_preset(
         self, sample_students: list[Student], tmp_path: Path
     ) -> None:
-        grade_list = GradeList(teachers=[], students=sample_students)
         filepath = tmp_path / "students_custom.xlsx"
-        grade_list.save_students_to_excel(filepath, preset=ESTES_PRESET)
-        loaded = GradeList.load_students_from_excel(filepath, preset=ESTES_PRESET)
+        save_students_to_excel(sample_students, filepath, preset=ESTES_PRESET)
+        loaded = load_students_from_excel(filepath, preset=ESTES_PRESET)
 
         assert len(loaded) == 2
 
         alice = next(s for s in loaded if s.first_name == "Alice")
         assert alice.gender == Gender.FEMALE
-        assert alice.math == Math.HIGH
+        assert alice.math == Academic.HIGH
         assert alice.cluster == Cluster.GEM
         assert alice.resource is True
         assert "Bob Brown" in alice.exclusions
@@ -738,9 +714,8 @@ class TestCustomPresetStudents:
     ) -> None:
         import pandas as pd
 
-        grade_list = GradeList(teachers=[], students=sample_students)
         filepath = tmp_path / "students_custom.xlsx"
-        grade_list.save_students_to_excel(filepath, preset=ESTES_PRESET)
+        save_students_to_excel(sample_students, filepath, preset=ESTES_PRESET)
 
         with pd.ExcelFile(filepath) as ef:
             assert "Student Data" in ef.sheet_names
@@ -750,9 +725,8 @@ class TestCustomPresetStudents:
     ) -> None:
         import pandas as pd
 
-        grade_list = GradeList(teachers=[], students=sample_students)
         filepath = tmp_path / "students_custom.xlsx"
-        grade_list.save_students_to_excel(filepath, preset=ESTES_PRESET)
+        save_students_to_excel(sample_students, filepath, preset=ESTES_PRESET)
 
         df = pd.read_excel(filepath, sheet_name="Student Data")
         assert "FName" in df.columns
@@ -785,16 +759,16 @@ class TestCustomPresetClassrooms:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             ),
             Student(
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                math=Math.MEDIUM,
-                ela=ELA.MEDIUM,
+                math=Academic.MEDIUM,
+                ela=Academic.MEDIUM,
                 behavior=Behavior.MEDIUM,
             ),
         ]
@@ -809,15 +783,11 @@ class TestCustomPresetClassrooms:
             teacher=sample_teachers[0],
             students=[sample_students[0], sample_students[1]],
         )
-        grade_list = GradeList(
-            classes=[classroom],
-            teachers=sample_teachers,
-            students=sample_students,
-        )
+        classes = [classroom]
 
         filepath = tmp_path / "classrooms_custom.xlsx"
-        grade_list.save_classrooms_to_excel(filepath, preset=ESTES_PRESET)
-        loaded = GradeList.load_classrooms_from_excel(
+        save_classrooms_to_excel(classes, filepath, preset=ESTES_PRESET)
+        loaded = load_classrooms_from_excel(
             filepath, sample_teachers, sample_students, preset=ESTES_PRESET
         )
 
@@ -837,14 +807,10 @@ class TestCustomPresetClassrooms:
         import pandas as pd
 
         classroom = Classroom(teacher=sample_teachers[0], students=[sample_students[0]])
-        grade_list = GradeList(
-            classes=[classroom],
-            teachers=sample_teachers,
-            students=sample_students,
-        )
+        classes = [classroom]
 
         filepath = tmp_path / "classrooms_custom.xlsx"
-        grade_list.save_classrooms_to_excel(filepath, preset=ESTES_PRESET)
+        save_classrooms_to_excel(classes, filepath, preset=ESTES_PRESET)
 
         with pd.ExcelFile(filepath) as ef:
             assert "Classes" in ef.sheet_names

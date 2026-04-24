@@ -32,27 +32,41 @@ from typing import Any
 
 import pydantic
 
-_DEFAULT_TEACHER_COLUMNS: dict[str, str] = {
-    "name": "Name",
-    "grade": "Grade",
-    "clusters": "Clusters",
-}
+from eagleclasslists.data.classlist import Student, Teacher
 
-_DEFAULT_STUDENT_COLUMNS: dict[str, str] = {
-    "first_name": "First Name",
-    "last_name": "Last Name",
-    "gender": "Gender",
-    "math": "Math",
-    "ela": "ELA",
-    "behavior": "Behavior",
-    "grade": "Grade",
-    "teacher": "Teacher",
-    "cluster": "Cluster",
-    "resource": "Resource",
-    "speech": "Speech",
-    "exclusions": "Exclusions",
-}
 
+def _build_column_mapping(model_class: type[pydantic.BaseModel]) -> dict[str, str]:
+    """Build a column mapping from Pydantic model fields.
+
+    Maps Python attribute names to their field aliases. If no alias is defined,
+    the attribute name is title-cased (e.g., "first_name" -> "First Name").
+
+    Args:
+        model_class: A Pydantic BaseModel class.
+
+    Returns:
+        Dict mapping attribute names to column header strings.
+    """
+    result: dict[str, str] = {}
+    for attr_name, field_info in model_class.model_fields.items():
+        alias = field_info.alias
+        if alias is not None:
+            result[attr_name] = alias
+        else:
+            # Title-case the attribute name, replacing underscores with spaces
+            result[attr_name] = attr_name.replace("_", " ").title()
+    return result
+
+
+# Build default column mappings from model fields and aliases
+_DEFAULT_TEACHER_COLUMNS: dict[str, str] = _build_column_mapping(Teacher)
+"""Default column mapping derived from Teacher model fields."""
+
+_DEFAULT_STUDENT_COLUMNS: dict[str, str] = _build_column_mapping(Student)
+"""Default column mapping derived from Student model fields."""
+
+# Classroom mappings are not derived from a model since Classroom is a dataclass
+# These represent the flattened structure for import/export
 _DEFAULT_CLASSROOM_COLUMNS: dict[str, str] = {
     "teacher_name": "Teacher Name",
     "teacher_grade": "Teacher Grade",
@@ -60,6 +74,23 @@ _DEFAULT_CLASSROOM_COLUMNS: dict[str, str] = {
     "student_last_name": "Student Last Name",
     "student_grade": "Student Grade",
 }
+
+
+def _build_required_fields(model_class: type[pydantic.BaseModel]) -> set[str]:
+    """Build a set of required field names from a Pydantic model.
+
+    Args:
+        model_class: A Pydantic BaseModel class.
+
+    Returns:
+        Set of attribute names that are required fields.
+    """
+    return {
+        attr_name
+        for attr_name, field_info in model_class.model_fields.items()
+        if field_info.is_required()
+    }
+
 
 TEACHER_FIELDS: list[str] = list(_DEFAULT_TEACHER_COLUMNS.keys())
 """Ordered list of teacher attribute names for UI presentation."""
@@ -70,25 +101,28 @@ STUDENT_FIELDS: list[str] = list(_DEFAULT_STUDENT_COLUMNS.keys())
 CLASSROOM_FIELDS: list[str] = list(_DEFAULT_CLASSROOM_COLUMNS.keys())
 """Ordered list of classroom attribute names for UI presentation."""
 
-REQUIRED_STUDENT_FIELDS: set[str] = {
-    "first_name",
-    "last_name",
-    "gender",
-    "math",
-    "ela",
-    "behavior",
-}
-"""Student fields that must be mapped for import to succeed."""
+REQUIRED_STUDENT_FIELDS: set[str] = _build_required_fields(Student)
+"""Student fields that must be mapped for import to succeed.
 
-REQUIRED_TEACHER_FIELDS: set[str] = {"name"}
-"""Teacher fields that must be mapped for import to succeed."""
+Derived from Student model required fields.
+"""
+
+REQUIRED_TEACHER_FIELDS: set[str] = _build_required_fields(Teacher)
+"""Teacher fields that must be mapped for import to succeed.
+
+Derived from Teacher model required fields.
+"""
 
 REQUIRED_CLASSROOM_FIELDS: set[str] = {
     "teacher_name",
     "student_first_name",
     "student_last_name",
 }
-"""Classroom fields that must be mapped for import to succeed."""
+"""Classroom fields that must be mapped for import to succeed.
+
+Note: Not derived from a model since Classroom is a dataclass representing
+a relationship between Teacher and Student, not a standalone entity with fields.
+"""
 
 
 class ColumnMappingPreset(pydantic.BaseModel):

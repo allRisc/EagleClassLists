@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 from eagleclasslists.app.grade_list_model import GradeListModel
-from eagleclasslists.classlist import Cluster, Teacher
+from eagleclasslists.data.classlist import Cluster, Teacher
 
 
 class TeacherFormDialog(QDialog):

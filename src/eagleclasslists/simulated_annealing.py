@@ -41,11 +41,9 @@ import math
 import random
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from eagleclasslists.classlist import Classroom, GradeList, Student
-    from eagleclasslists.fitness import FitnessWeights
+from eagleclasslists.data.classlist import Classroom, GradeList, Student
+from eagleclasslists.fitness import FitnessWeights, calculate_fitness
 
 
 @dataclass
@@ -114,9 +112,6 @@ def optimize_grade_list(
 
     if config.random_seed is not None:
         random.seed(config.random_seed)
-
-    # Import fitness module here to avoid circular imports
-    from eagleclasslists.fitness import calculate_fitness
 
     # Create a deep copy to avoid modifying the original
     current_solution = _copy_grade_list(grade_list)
@@ -209,8 +204,6 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
     Returns:
         A new GradeList with copied students and classrooms.
     """
-    from eagleclasslists.classlist import Classroom, GradeList
-
     # Copy teachers (shared reference is fine)
     teachers = list(grade_list.teachers)
 
@@ -853,8 +846,6 @@ def optimize_multiple_times(
     Returns:
         A tuple of (best_grade_list, best_fitness_score).
     """
-    from eagleclasslists.fitness import calculate_fitness
-
     best_solution = None
     best_fitness = 0.0
 

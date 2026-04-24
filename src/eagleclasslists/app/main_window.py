@@ -46,7 +46,8 @@ from eagleclasslists.app.widgets import (
 )
 from eagleclasslists.app.widgets.students_view import StudentFormDialog
 from eagleclasslists.app.widgets.teachers_view import TeacherFormDialog
-from eagleclasslists.classlist import ExcelImportError, GradeList
+from eagleclasslists.data.classlist import GradeList
+from eagleclasslists.data.errors import ExcelImportError
 
 _ALL_GRADES_LABEL = "All Grades"
 
@@ -124,11 +125,11 @@ class MainWindow(QMainWindow):
         new_student_action.triggered.connect(self._new_student)
         edit_menu.addAction(new_student_action)
 
-        edit_menu.addSeparator()
+        tools_menu = menu_bar.addMenu("Tools")
 
         column_mapping_action = QAction("Column Mapping...", self)
         column_mapping_action.triggered.connect(self._show_column_mapping)
-        edit_menu.addAction(column_mapping_action)
+        tools_menu.addAction(column_mapping_action)
 
     def _create_toolbar(self) -> None:
         """Create the toolbar with grade selection dropdown."""

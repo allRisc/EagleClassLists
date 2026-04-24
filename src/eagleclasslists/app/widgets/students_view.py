@@ -40,7 +40,8 @@ from PySide6.QtWidgets import (
 )
 
 from eagleclasslists.app.grade_list_model import GradeListModel
-from eagleclasslists.classlist import ELA, Behavior, Cluster, Gender, Math, Student
+from eagleclasslists.data.classlist import Behavior, Cluster, Gender, Student
+from eagleclasslists.data.types import Academic
 
 
 class StudentFormDialog(QDialog):
@@ -94,11 +95,11 @@ class StudentFormDialog(QDialog):
         academic_layout = QFormLayout()
 
         self.math_combo = QComboBox()
-        for math_level in Math:
+        for math_level in Academic:
             self.math_combo.addItem(math_level.value)
 
         self.ela_combo = QComboBox()
-        for ela_level in ELA:
+        for ela_level in Academic:
             self.ela_combo.addItem(ela_level.value)
 
         self.behavior_combo = QComboBox()
@@ -189,8 +190,8 @@ class StudentFormDialog(QDialog):
                 self.grade_combo.setEditText(student.grade)
 
         self.gender_combo.setCurrentIndex(list(Gender).index(student.gender))
-        self.math_combo.setCurrentIndex(list(Math).index(student.math))
-        self.ela_combo.setCurrentIndex(list(ELA).index(student.ela))
+        self.math_combo.setCurrentIndex(list(Academic).index(student.math))
+        self.ela_combo.setCurrentIndex(list(Academic).index(student.ela))
         self.behavior_combo.setCurrentIndex(list(Behavior).index(student.behavior))
 
         if student.cluster:
@@ -260,8 +261,8 @@ class StudentFormDialog(QDialog):
             first_name=first_name,
             last_name=last_name,
             gender=list(Gender)[self.gender_combo.currentIndex()],
-            math=list(Math)[self.math_combo.currentIndex()],
-            ela=list(ELA)[self.ela_combo.currentIndex()],
+            math=list(Academic)[self.math_combo.currentIndex()],
+            ela=list(Academic)[self.ela_combo.currentIndex()],
             behavior=list(Behavior)[self.behavior_combo.currentIndex()],
             grade=grade,
             cluster=cluster,

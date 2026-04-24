@@ -24,13 +24,21 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
-from eagleclasslists.classlist import (
+from eagleclasslists.data.classlist import (
     Classroom,
     GradeList,
     Student,
     Teacher,
 )
-from eagleclasslists.settings import (
+from eagleclasslists.data.importer import (
+    load_classrooms_from_excel,
+    load_students_from_excel,
+    load_teachers_from_excel,
+    save_classrooms_to_excel,
+    save_students_to_excel,
+    save_teachers_to_excel,
+)
+from eagleclasslists.data.settings import (
     ColumnMappingPreset,
     ColumnMappingStore,
 )
@@ -191,7 +199,7 @@ class GradeListModel(QObject):
         Raises:
             ExcelImportError: If the file cannot be read or validated.
         """
-        teachers = GradeList.load_teachers_from_excel(filepath, self._active_preset)
+        teachers = load_teachers_from_excel(filepath, self._active_preset)
         self._all_teachers = teachers
         self._auto_select_grade()
         self._filter_by_grade()
@@ -208,7 +216,7 @@ class GradeListModel(QObject):
         Raises:
             ExcelImportError: If the file cannot be read or validated.
         """
-        students = GradeList.load_students_from_excel(filepath, self._active_preset)
+        students = load_students_from_excel(filepath, self._active_preset)
         self._all_students = students
         self._auto_select_grade()
         self._filter_by_grade()
@@ -227,7 +235,7 @@ class GradeListModel(QObject):
         Raises:
             ExcelImportError: If references cannot be resolved.
         """
-        classrooms = GradeList.load_classrooms_from_excel(
+        classrooms = load_classrooms_from_excel(
             filepath,
             self._grade_list.teachers,
             self._grade_list.students,
@@ -249,7 +257,7 @@ class GradeListModel(QObject):
         Args:
             filepath: Path to write the teachers Excel file.
         """
-        self._grade_list.save_teachers_to_excel(filepath, self._active_preset)
+        save_teachers_to_excel(self._grade_list.teachers, filepath, self._active_preset)
 
     def save_students(self, filepath: str | Path) -> None:
         """Save students to an Excel file.
@@ -259,7 +267,7 @@ class GradeListModel(QObject):
         Args:
             filepath: Path to write the students Excel file.
         """
-        self._grade_list.save_students_to_excel(filepath, self._active_preset)
+        save_students_to_excel(self._grade_list.students, filepath, self._active_preset)
 
     def save_classrooms(self, filepath: str | Path) -> None:
         """Save classroom assignments to an Excel file.
@@ -269,7 +277,7 @@ class GradeListModel(QObject):
         Args:
             filepath: Path to write the classrooms Excel file.
         """
-        self._grade_list.save_classrooms_to_excel(filepath, self._active_preset)
+        save_classrooms_to_excel(self._grade_list.classes, filepath, self._active_preset)
 
     def remove_student(self, first_name: str, last_name: str) -> None:
         """Remove a student from the grade list and all classrooms.

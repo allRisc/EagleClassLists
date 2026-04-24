@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from eagleclasslists.settings import (
+from eagleclasslists.data.settings import (
     CLASSROOM_FIELDS,
     DEFAULT_PRESET,
     DEFAULT_PRESET_NAME,

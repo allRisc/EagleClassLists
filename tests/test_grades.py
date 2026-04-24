@@ -24,19 +24,24 @@ from pathlib import Path
 
 import pytest
 
-from eagleclasslists.classlist import (
-    ELA,
+from eagleclasslists.data.classlist import (
     Behavior,
     Cluster,
     Gender,
     GradeList,
-    Math,
     Student,
     Teacher,
 )
-from eagleclasslists.settings import (
+from eagleclasslists.data.importer import (
+    load_students_from_excel,
+    load_teachers_from_excel,
+    save_students_to_excel,
+    save_teachers_to_excel,
+)
+from eagleclasslists.data.settings import (
     ColumnMappingPreset,
 )
+from eagleclasslists.data.types import Academic
 
 
 class TestStudentGradeField:
@@ -47,8 +52,8 @@ class TestStudentGradeField:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.LOW,
         )
         assert student.grade is None
@@ -58,8 +63,8 @@ class TestStudentGradeField:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.LOW,
             grade="3",
         )
@@ -96,8 +101,8 @@ class TestExcelRoundtripWithGrades:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.LOW,
                 grade="2",
             ),
@@ -105,8 +110,8 @@ class TestExcelRoundtripWithGrades:
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                math=Math.LOW,
-                ela=ELA.MEDIUM,
+                math=Academic.LOW,
+                ela=Academic.MEDIUM,
                 behavior=Behavior.HIGH,
                 grade="3",
             ),
@@ -114,8 +119,8 @@ class TestExcelRoundtripWithGrades:
                 first_name="Charlie",
                 last_name="Clark",
                 gender=Gender.MALE,
-                math=Math.MEDIUM,
-                ela=ELA.LOW,
+                math=Academic.MEDIUM,
+                ela=Academic.LOW,
                 behavior=Behavior.MEDIUM,
                 grade="2",
             ),
@@ -126,10 +131,9 @@ class TestExcelRoundtripWithGrades:
         sample_teachers_with_grades: list[Teacher],
         tmp_path: Path,
     ) -> None:
-        grade_list = GradeList(teachers=sample_teachers_with_grades, students=[])
         filepath = tmp_path / "teachers.xlsx"
-        grade_list.save_teachers_to_excel(filepath)
-        loaded = GradeList.load_teachers_from_excel(filepath)
+        save_teachers_to_excel(sample_teachers_with_grades, filepath)
+        loaded = load_teachers_from_excel(filepath)
 
         assert len(loaded) == 3
         smith = next(t for t in loaded if t.name == "Ms. Smith")
@@ -142,10 +146,9 @@ class TestExcelRoundtripWithGrades:
         sample_students_with_grades: list[Student],
         tmp_path: Path,
     ) -> None:
-        grade_list = GradeList(teachers=[], students=sample_students_with_grades)
         filepath = tmp_path / "students.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel(sample_students_with_grades, filepath)
+        loaded = load_students_from_excel(filepath)
 
         assert len(loaded) == 3
         alice = next(s for s in loaded if s.first_name == "Alice")
@@ -161,10 +164,9 @@ class TestExcelRoundtripWithGrades:
             Teacher(name="Ms. Smith", clusters=[Cluster.AC]),
             Teacher(name="Mr. Jones", clusters=[Cluster.GEM]),
         ]
-        grade_list = GradeList(teachers=teachers, students=[])
         filepath = tmp_path / "teachers.xlsx"
-        grade_list.save_teachers_to_excel(filepath)
-        loaded = GradeList.load_teachers_from_excel(filepath)
+        save_teachers_to_excel(teachers, filepath)
+        loaded = load_teachers_from_excel(filepath)
 
         assert all(t.grade is None for t in loaded)
 
@@ -177,15 +179,14 @@ class TestExcelRoundtripWithGrades:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.LOW,
             ),
         ]
-        grade_list = GradeList(teachers=[], students=students)
         filepath = tmp_path / "students.xlsx"
-        grade_list.save_students_to_excel(filepath)
-        loaded = GradeList.load_students_from_excel(filepath)
+        save_students_to_excel(students, filepath)
+        loaded = load_students_from_excel(filepath)
 
         assert all(s.grade is None for s in loaded)
 
@@ -232,8 +233,8 @@ class TestGradeListModel:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.LOW,
                 grade="2",
             ),
@@ -241,8 +242,8 @@ class TestGradeListModel:
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                math=Math.LOW,
-                ela=ELA.MEDIUM,
+                math=Academic.LOW,
+                ela=Academic.MEDIUM,
                 behavior=Behavior.HIGH,
                 grade="3",
             ),
@@ -285,8 +286,8 @@ class TestGradeListModel:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.LOW,
             ),
         ]
@@ -364,8 +365,8 @@ class TestGradeListModel:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.LOW,
                 grade="2",
             ),
@@ -402,8 +403,8 @@ class TestGradeListModelWithExcel:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.LOW,
                 grade="2",
             ),
@@ -411,8 +412,8 @@ class TestGradeListModelWithExcel:
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                math=Math.LOW,
-                ela=ELA.MEDIUM,
+                math=Academic.LOW,
+                ela=Academic.MEDIUM,
                 behavior=Behavior.HIGH,
                 grade="3",
             ),
@@ -425,9 +426,8 @@ class TestGradeListModelWithExcel:
     ) -> None:
         from eagleclasslists.app.grade_list_model import GradeListModel
 
-        grade_list = GradeList(teachers=sample_teachers_with_grades, students=[])
         filepath = tmp_path / "teachers.xlsx"
-        grade_list.save_teachers_to_excel(filepath)
+        save_teachers_to_excel(sample_teachers_with_grades, filepath)
 
         model = GradeListModel(GradeList(teachers=[], students=[]))
         model.load_teachers(filepath)
@@ -445,9 +445,8 @@ class TestGradeListModelWithExcel:
     ) -> None:
         from eagleclasslists.app.grade_list_model import GradeListModel
 
-        grade_list = GradeList(teachers=[], students=sample_students_with_grades)
         filepath = tmp_path / "students.xlsx"
-        grade_list.save_students_to_excel(filepath)
+        save_students_to_excel(sample_students_with_grades, filepath)
 
         model = GradeListModel(GradeList(teachers=[], students=[]))
         model.load_students(filepath)
@@ -466,13 +465,11 @@ class TestGradeListModelWithExcel:
     ) -> None:
         from eagleclasslists.app.grade_list_model import GradeListModel
 
-        teachers_gl = GradeList(teachers=sample_teachers_with_grades, students=[])
         teachers_path = tmp_path / "teachers.xlsx"
-        teachers_gl.save_teachers_to_excel(teachers_path)
+        save_teachers_to_excel(sample_teachers_with_grades, teachers_path)
 
-        students_gl = GradeList(teachers=[], students=sample_students_with_grades)
         students_path = tmp_path / "students.xlsx"
-        students_gl.save_students_to_excel(students_path)
+        save_students_to_excel(sample_students_with_grades, students_path)
 
         model = GradeListModel(GradeList(teachers=[], students=[]))
         model.load_teachers(teachers_path)

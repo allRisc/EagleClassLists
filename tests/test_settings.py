@@ -25,7 +25,7 @@ from pathlib import Path
 import pydantic
 import pytest
 
-from eagleclasslists.settings import (
+from eagleclasslists.data.settings import (
     DEFAULT_PRESET,
     DEFAULT_PRESET_NAME,
     REQUIRED_CLASSROOM_FIELDS,

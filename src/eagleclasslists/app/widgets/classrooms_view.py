@@ -43,7 +43,7 @@ from PySide6.QtWidgets import (
 )
 
 from eagleclasslists.app.grade_list_model import GradeListModel
-from eagleclasslists.classlist import GradeList, Student, Teacher
+from eagleclasslists.data.classlist import GradeList, Student, Teacher
 from eagleclasslists.fitness import FitnessWeights, calculate_fitness
 from eagleclasslists.greedy_assignment import greedy_assign_students
 from eagleclasslists.simulated_annealing import AnnealingConfig, optimize_grade_list

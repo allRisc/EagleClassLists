@@ -20,12 +20,11 @@ from PySide6.QtWidgets import QApplication
 
 from eagleclasslists.app.grade_list_model import GradeListModel
 from eagleclasslists.app.main_window import MainWindow
-from eagleclasslists.classlist import GradeList
+from eagleclasslists.data.classlist import GradeList
 
 
 def main():
     app = QApplication([])
-    # TODO: Replace with real data loading (e.g. from Excel or user prompt)
     grade_list = GradeList(Teachers=[], Students=[])
     model = GradeListModel(grade_list)
     window = MainWindow(model)

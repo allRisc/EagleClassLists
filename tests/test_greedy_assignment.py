@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import pytest
 
-from eagleclasslists.classlist import (
-    ELA,
+from eagleclasslists.data.classlist import (
     Behavior,
     Classroom,
     Cluster,
     Gender,
     GradeList,
-    Math,
     Student,
     Teacher,
 )
+from eagleclasslists.data.types import Academic
 from eagleclasslists.fitness import FitnessWeights, calculate_fitness
 from eagleclasslists.greedy_assignment import (
     ImpossibleConstraintsError,
@@ -57,8 +56,8 @@ class TestGreedyAssignStudents:
             first_name="John",
             last_name="Doe",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         grade_list = GradeList(
@@ -86,8 +85,8 @@ class TestGreedyAssignStudents:
                 first_name=f"Male{i}",
                 last_name="Test",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(4)
@@ -96,8 +95,8 @@ class TestGreedyAssignStudents:
                 first_name=f"Female{i}",
                 last_name="Test",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(4)
@@ -128,8 +127,8 @@ class TestGreedyAssignStudents:
             first_name="John",
             last_name="Doe",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         grade_list = GradeList(
@@ -150,8 +149,8 @@ class TestGreedyAssignStudents:
             first_name="John",
             last_name="Doe",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         original = GradeList(
@@ -173,8 +172,8 @@ class TestGreedyAssignStudents:
                 first_name=f"Student{i}",
                 last_name="Test",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(3)
@@ -211,8 +210,8 @@ class TestTeacherRequestConstraint:
             first_name="John",
             last_name="Doe",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Teacher B",  # Requested teacher
         )
@@ -242,8 +241,8 @@ class TestTeacherRequestConstraint:
             first_name="Requested",
             last_name="Student",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Teacher A",
         )
@@ -251,8 +250,8 @@ class TestTeacherRequestConstraint:
             first_name="Free",
             last_name="Student",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
 
@@ -285,8 +284,8 @@ class TestClusterConstraint:
             first_name="GEM",
             last_name="Student",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -315,8 +314,8 @@ class TestClusterConstraint:
             first_name="GEM",
             last_name="Student",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -348,16 +347,16 @@ class TestHelperFunctions:
             first_name="Assigned",
             last_name="Student",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         student_unassigned = Student(
             first_name="Unassigned",
             last_name="Student",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
 
@@ -378,8 +377,8 @@ class TestHelperFunctions:
             first_name="TeacherReq",
             last_name="A",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Teacher A",  # Has teacher request
         )
@@ -387,8 +386,8 @@ class TestHelperFunctions:
             first_name="Cluster",
             last_name="B",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,  # Has cluster
         )
@@ -396,8 +395,8 @@ class TestHelperFunctions:
             first_name="NoConstraint",
             last_name="C",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
 
@@ -418,8 +417,8 @@ class TestHelperFunctions:
             first_name="John",
             last_name="Doe",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Teacher A",
         )
@@ -427,8 +426,8 @@ class TestHelperFunctions:
             first_name="Jane",
             last_name="Doe",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Teacher B",
         )
@@ -448,8 +447,8 @@ class TestHelperFunctions:
             first_name="GEM",
             last_name="Student",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -465,8 +464,8 @@ class TestHelperFunctions:
             first_name="GEM",
             last_name="Student",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,  # No teacher is qualified for GEM
         )
@@ -488,8 +487,8 @@ class TestHelperFunctions:
             first_name="John",
             last_name="Doe",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
 
@@ -523,8 +522,8 @@ class TestFitnessImprovement:
                 first_name=f"Male{i}",
                 last_name="Test",
                 gender=Gender.MALE,
-                math=Math.HIGH if i % 3 == 0 else Math.MEDIUM,
-                ela=ELA.HIGH if i % 2 == 0 else ELA.MEDIUM,
+                math=Academic.HIGH if i % 3 == 0 else Academic.MEDIUM,
+                ela=Academic.HIGH if i % 2 == 0 else Academic.MEDIUM,
                 behavior=Behavior.HIGH if i % 4 == 0 else Behavior.MEDIUM,
             )
             for i in range(5)
@@ -533,8 +532,8 @@ class TestFitnessImprovement:
                 first_name=f"Female{i}",
                 last_name="Test",
                 gender=Gender.FEMALE,
-                math=Math.LOW if i % 2 == 0 else Math.MEDIUM,
-                ela=ELA.LOW if i % 3 == 0 else ELA.MEDIUM,
+                math=Academic.LOW if i % 2 == 0 else Academic.MEDIUM,
+                ela=Academic.LOW if i % 3 == 0 else Academic.MEDIUM,
                 behavior=Behavior.LOW if i % 2 == 0 else Behavior.MEDIUM,
             )
             for i in range(5)
@@ -570,8 +569,8 @@ class TestFitnessImprovement:
                 first_name=f"Male{i}",
                 last_name="Test",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(6)
@@ -580,8 +579,8 @@ class TestFitnessImprovement:
                 first_name=f"Female{i}",
                 last_name="Test",
                 gender=Gender.FEMALE,
-                math=Math.LOW,
-                ela=ELA.LOW,
+                math=Academic.LOW,
+                ela=Academic.LOW,
                 behavior=Behavior.LOW,
             )
             for i in range(2)
@@ -629,8 +628,8 @@ class TestCombinedConstraints:
             first_name="Constrained",
             last_name="Student",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Teacher A",  # Request
             cluster=Cluster.GEM,  # Cluster constraint
@@ -662,8 +661,8 @@ class TestCombinedConstraints:
             first_name="Conflict",
             last_name="Student",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Teacher A",  # Request
             cluster=Cluster.GEM,  # But needs GEM-qualified teacher
@@ -695,8 +694,8 @@ class TestExclusionConstraints:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student_in_class])
@@ -705,8 +704,8 @@ class TestExclusionConstraints:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown"],
         )
@@ -720,8 +719,8 @@ class TestExclusionConstraints:
             first_name="Charlie",
             last_name="Clark",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student_in_class])
@@ -730,8 +729,8 @@ class TestExclusionConstraints:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown"],  # Charlie is not excluded
         )
@@ -745,8 +744,8 @@ class TestExclusionConstraints:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student_in_class])
@@ -755,8 +754,8 @@ class TestExclusionConstraints:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=[],
         )
@@ -770,8 +769,8 @@ class TestExclusionConstraints:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student_in_class])
@@ -780,8 +779,8 @@ class TestExclusionConstraints:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown"],
         )
@@ -794,8 +793,8 @@ class TestExclusionConstraints:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown"],
         )
@@ -803,16 +802,16 @@ class TestExclusionConstraints:
             first_name="Charlie",
             last_name="Clark",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         student_with_cluster = Student(
             first_name="David",
             last_name="Davis",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.AC,
         )
@@ -834,8 +833,8 @@ class TestExclusionConstraints:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown"],
         )
@@ -843,8 +842,8 @@ class TestExclusionConstraints:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
 
@@ -882,8 +881,8 @@ class TestExclusionConstraints:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown", "Charlie Clark"],
         )
@@ -891,16 +890,16 @@ class TestExclusionConstraints:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         student_c = Student(
             first_name="Charlie",
             last_name="Clark",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
 
@@ -932,8 +931,8 @@ class TestExclusionConstraints:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             exclusions=["Bob Brown", "Charlie Clark"],
         )
@@ -941,16 +940,16 @@ class TestExclusionConstraints:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         student_c = Student(
             first_name="Charlie",
             last_name="Clark",
             gender=Gender.MALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
 
