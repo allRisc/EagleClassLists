@@ -153,6 +153,7 @@ class ColumnMappingPreset(pydantic.BaseModel):
     classroom_columns: dict[str, str] = pydantic.Field(
         default_factory=lambda: dict(_DEFAULT_CLASSROOM_COLUMNS)
     )
+    split_cluster_columns: dict[str, str] = pydantic.Field(default_factory=dict)
 
     def reverse_teacher_columns(self) -> dict[str, str]:
         """Return a reverse mapping from Excel column headers to attribute names."""

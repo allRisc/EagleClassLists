@@ -820,3 +820,239 @@ class TestCustomPresetClassrooms:
         assert "Stu First" in df.columns
         assert "Stu Last" in df.columns
         assert "Teacher Name" not in df.columns
+
+
+# ---------------------------------------------------------------------------
+# Preset with split cluster columns for testing
+# ---------------------------------------------------------------------------
+SPLIT_CLUSTER_PRESET = ColumnMappingPreset(
+    name="Split Cluster Test",
+    split_cluster_columns={
+        "AC": "Academically Challenged",
+        "GEM": "Gifted Education",
+        "EL": "English Learner",
+    },
+)
+
+
+class TestSplitClusterColumns:
+    """Test suite for split cluster columns feature."""
+
+    @pytest.fixture
+    def sample_students(self) -> list[Student]:
+        return [
+            Student(
+                first_name="Alice",
+                last_name="Anderson",
+                gender=Gender.FEMALE,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
+                behavior=Behavior.HIGH,
+                cluster=Cluster.GEM,
+            ),
+            Student(
+                first_name="Bob",
+                last_name="Brown",
+                gender=Gender.MALE,
+                math=Academic.MEDIUM,
+                ela=Academic.MEDIUM,
+                behavior=Behavior.MEDIUM,
+                cluster=Cluster.AC,
+            ),
+            Student(
+                first_name="Charlie",
+                last_name="Clark",
+                gender=Gender.MALE,
+                math=Academic.LOW,
+                ela=Academic.LOW,
+                behavior=Behavior.LOW,
+                cluster=None,
+            ),
+        ]
+
+    def test_roundtrip_split_cluster_columns(
+        self, sample_students: list[Student], tmp_path: Path
+    ) -> None:
+        filepath = tmp_path / "split_clusters.xlsx"
+        save_students_to_excel(sample_students, filepath, preset=SPLIT_CLUSTER_PRESET)
+        loaded = load_students_from_excel(filepath, preset=SPLIT_CLUSTER_PRESET)
+
+        assert len(loaded) == 3
+
+        alice = next(s for s in loaded if s.first_name == "Alice")
+        assert alice.cluster == Cluster.GEM
+
+        bob = next(s for s in loaded if s.first_name == "Bob")
+        assert bob.cluster == Cluster.AC
+
+        charlie = next(s for s in loaded if s.first_name == "Charlie")
+        assert charlie.cluster is None
+
+    def test_split_columns_none_cluster(self, tmp_path: Path) -> None:
+        student = Student(
+            first_name="Dana",
+            last_name="Davis",
+            gender=Gender.FEMALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            cluster=None,
+        )
+        filepath = tmp_path / "no_cluster.xlsx"
+        save_students_to_excel([student], filepath, preset=SPLIT_CLUSTER_PRESET)
+        loaded = load_students_from_excel(filepath, preset=SPLIT_CLUSTER_PRESET)
+
+        assert len(loaded) == 1
+        assert loaded[0].cluster is None
+
+    def test_split_columns_excel_headers(self, tmp_path: Path) -> None:
+        import pandas as pd
+
+        student = Student(
+            first_name="Eve",
+            last_name="Evans",
+            gender=Gender.FEMALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            cluster=Cluster.EL,
+        )
+        filepath = tmp_path / "headers.xlsx"
+        save_students_to_excel([student], filepath, preset=SPLIT_CLUSTER_PRESET)
+
+        df = pd.read_excel(filepath, sheet_name="Students")
+        assert "Academically Challenged" in df.columns
+        assert "Gifted Education" in df.columns
+        assert "English Learner" in df.columns
+        # The original "Cluster" column should be removed since EL is in the split map
+        assert "Cluster" not in df.columns
+
+        # Verify boolean values
+        row = df.iloc[0]
+        assert row["Academically Challenged"] == "No"
+        assert row["Gifted Education"] == "No"
+        assert row["English Learner"] == "Yes"
+
+    def test_multiple_truthy_split_columns_raises_error(self, tmp_path: Path) -> None:
+        import pandas as pd
+
+        filepath = tmp_path / "multi_true.xlsx"
+        with pd.ExcelWriter(filepath) as writer:
+            df = pd.DataFrame({
+                "First Name": ["Alice"],
+                "Last Name": ["Anderson"],
+                "Gender": ["Female"],
+                "Math": ["High"],
+                "ELA": ["High"],
+                "Behavior": ["High"],
+                "Academically Challenged": ["Yes"],
+                "Gifted Education": ["Yes"],
+                "English Learner": ["No"],
+            })
+            df.to_excel(writer, sheet_name="Students", index=False)
+
+        with pytest.raises(ExcelImportError) as exc_info:
+            load_students_from_excel(filepath, preset=SPLIT_CLUSTER_PRESET)
+        assert "multiple" in str(exc_info.value).lower()
+
+    def test_partial_mapping_unmapped_cluster_preserved(self, tmp_path: Path) -> None:
+        """Only AC and GEM are split; EL student keeps the single column."""
+        partial_preset = ColumnMappingPreset(
+            name="Partial Split",
+            split_cluster_columns={
+                "AC": "Acad. Challenged",
+                "GEM": "Gifted",
+            },
+        )
+        students = [
+            Student(
+                first_name="Alice",
+                last_name="Anderson",
+                gender=Gender.FEMALE,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
+                behavior=Behavior.HIGH,
+                cluster=Cluster.GEM,
+            ),
+            Student(
+                first_name="Bob",
+                last_name="Brown",
+                gender=Gender.MALE,
+                math=Academic.MEDIUM,
+                ela=Academic.MEDIUM,
+                behavior=Behavior.MEDIUM,
+                cluster=Cluster.EL,
+            ),
+        ]
+        filepath = tmp_path / "partial.xlsx"
+        save_students_to_excel(students, filepath, preset=partial_preset)
+        loaded = load_students_from_excel(filepath, preset=partial_preset)
+
+        alice = next(s for s in loaded if s.first_name == "Alice")
+        assert alice.cluster == Cluster.GEM
+
+        bob = next(s for s in loaded if s.first_name == "Bob")
+        assert bob.cluster == Cluster.EL
+
+    def test_blank_cells_treated_as_no(self, tmp_path: Path) -> None:
+        """Absent/NaN cells in split columns should be treated as No."""
+        import pandas as pd
+
+        filepath = tmp_path / "blanks.xlsx"
+        with pd.ExcelWriter(filepath) as writer:
+            df = pd.DataFrame({
+                "First Name": ["Alice"],
+                "Last Name": ["Anderson"],
+                "Gender": ["Female"],
+                "Math": ["High"],
+                "ELA": ["High"],
+                "Behavior": ["High"],
+                # All split columns blank/absent — pandas will write NaN
+            })
+            df.to_excel(writer, sheet_name="Students", index=False)
+
+        loaded = load_students_from_excel(filepath, preset=SPLIT_CLUSTER_PRESET)
+        assert len(loaded) == 1
+        assert loaded[0].cluster is None
+
+    def test_split_columns_with_custom_preset(self, tmp_path: Path) -> None:
+        """Full integration with custom column names AND split clusters."""
+        custom_preset = ColumnMappingPreset(
+            name="Custom Split",
+            students_sheet="Student Data",
+            student_columns={
+                "first_name": "FName",
+                "last_name": "LName",
+                "gender": "Sex",
+                "math": "Math Level",
+                "ela": "ELA Level",
+                "behavior": "Behavior Level",
+                "cluster": "Program",
+                "resource": "Resource",
+                "speech": "Speech",
+                "exclusions": "Cannot Be With",
+            },
+            split_cluster_columns={
+                "AC": "Is AC",
+                "GEM": "Is GEM",
+                "EL": "Is EL",
+            },
+        )
+        students = [
+            Student(
+                first_name="Alice",
+                last_name="Anderson",
+                gender=Gender.FEMALE,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
+                behavior=Behavior.HIGH,
+                cluster=Cluster.GEM,
+            ),
+        ]
+        filepath = tmp_path / "custom_split.xlsx"
+        save_students_to_excel(students, filepath, preset=custom_preset)
+        loaded = load_students_from_excel(filepath, preset=custom_preset)
+
+        assert len(loaded) == 1
+        assert loaded[0].first_name == "Alice"
+        assert loaded[0].cluster == Cluster.GEM

@@ -38,6 +38,93 @@ from eagleclasslists.data.settings import (
     rename_records_for_reading,
     rename_records_for_writing,
 )
+from eagleclasslists.data.types import _pydantic_bool_parser
+
+
+def _merge_split_cluster_columns(
+    records: list[dict[str, Any]],
+    split_map: dict[str, str],
+) -> list[dict[str, Any]]:
+    """Merge split boolean cluster columns into a single ``cluster`` key.
+
+    Called after :func:`rename_records_for_reading`.  The split column headers
+    are *not* in the regular ``student_columns`` mapping, so they pass through
+    the rename step unchanged and are still keyed by their Excel header names.
+
+    Args:
+        records: Records that have already been through rename (Python attr
+            names for standard columns, Excel headers for split columns).
+        split_map: Maps Cluster enum value (``"AC"``) to Excel column header.
+
+    Returns:
+        The same records list, mutated in-place, with split column keys removed
+        and ``"cluster"`` set when exactly one split column is truthy.
+
+    Raises:
+        ExcelImportError: If more than one split column is truthy for a row.
+    """
+    reverse: dict[str, str] = {header: cluster for cluster, header in split_map.items()}
+
+    for record in records:
+        matched: list[str] = []
+        for header, cluster_val in reverse.items():
+            raw = record.pop(header, None)
+            if raw is None:
+                continue
+            try:
+                if _pydantic_bool_parser(raw):
+                    matched.append(cluster_val)
+            except ValueError:
+                pass
+
+        if len(matched) > 1:
+            raise ExcelImportError(
+                "Multiple cluster columns are set for a student",
+                f"A student has multiple cluster columns marked as Yes: "
+                f"{', '.join(matched)}. Only one cluster is allowed per student.",
+            )
+        if len(matched) == 1:
+            record["cluster"] = matched[0]
+
+    return records
+
+
+def _expand_split_cluster_columns(
+    records: list[dict[str, Any]],
+    split_map: dict[str, str],
+    cluster_header: str | None,
+) -> list[dict[str, Any]]:
+    """Expand a single cluster column into split boolean columns for writing.
+
+    Called after :func:`rename_records_for_writing` so keys are Excel headers.
+
+    Args:
+        records: Records with Excel column header keys.
+        split_map: Maps Cluster enum value (``"AC"``) to Excel column header.
+        cluster_header: The Excel column header for the original cluster column
+            (from ``student_columns["cluster"]``), used to read and optionally
+            remove the original value.
+
+    Returns:
+        The same records list, mutated in-place, with boolean split columns
+        added and the original cluster column removed when the value is
+        represented by a split column.
+    """
+    for record in records:
+        cluster_value = record.get(cluster_header) if cluster_header else None
+        # Normalise enum instances and strings to a plain string for comparison
+        cluster_str = str(cluster_value) if cluster_value is not None else None
+
+        for cluster_enum_val, header in split_map.items():
+            record[header] = "Yes" if cluster_str == cluster_enum_val else "No"
+
+        # Remove the original cluster column only when the value is covered
+        # by one of the split columns (or is None/empty).
+        if cluster_header and cluster_header in record:
+            if cluster_str is None or cluster_str in split_map:
+                del record[cluster_header]
+
+    return records
 
 
 def save_teachers_to_excel(
@@ -72,6 +159,9 @@ def save_students_to_excel(
     """
     records = [s.model_dump(by_alias=False) for s in students]
     renamed = rename_records_for_writing(records, preset.student_columns)
+    if preset.split_cluster_columns:
+        cluster_header = preset.student_columns.get("cluster")
+        _expand_split_cluster_columns(renamed, preset.split_cluster_columns, cluster_header)
     df = pd.DataFrame(renamed) if renamed else pd.DataFrame()
     df.to_excel(filepath, sheet_name=preset.students_sheet, index=False)
 
@@ -181,6 +271,8 @@ def load_students_from_excel(
         with pd.ExcelFile(filepath) as ef:
             records = _sheet_to_clean_records(ef, preset.students_sheet)
             renamed = rename_records_for_reading(records, preset.student_columns)
+            if preset.split_cluster_columns:
+                _merge_split_cluster_columns(renamed, preset.split_cluster_columns)
             return [Student.model_validate(r) for r in renamed]
     except FileNotFoundError as e:
         raise ExcelImportError(

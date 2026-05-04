@@ -22,7 +22,10 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -50,6 +53,7 @@ from eagleclasslists.data.settings import (
     ColumnMappingPreset,
     ColumnMappingStore,
 )
+from eagleclasslists.data.types import Cluster
 
 _FIELD_LABELS: dict[str, str] = {
     "name": "Teacher Name",
@@ -95,6 +99,9 @@ class ColumnMappingDialog(QDialog):
     _teachers_fields: list[str]
     _students_fields: list[str]
     _classrooms_fields: list[str]
+    _split_cluster_checkbox: QCheckBox
+    _split_cluster_edits: dict[str, QLineEdit]
+    _split_cluster_group: QGroupBox
 
     def __init__(
         self,
@@ -241,11 +248,49 @@ class ColumnMappingDialog(QDialog):
         setattr(self, f"_{entity}_table", table)
         setattr(self, f"_{entity}_fields", fields)
 
+        # Add split cluster columns UI for students tab
+        if entity == "students":
+            self._create_split_cluster_ui(layout)
+
         hint = QLabel("* Required field")
         hint.setStyleSheet("font-size: 11px; color: #888;")
         layout.addWidget(hint)
 
         return widget
+
+    def _create_split_cluster_ui(self, parent_layout: QVBoxLayout) -> None:
+        """Create the split cluster columns checkbox and field group."""
+        self._split_cluster_checkbox = QCheckBox(
+            "Use separate columns for each cluster type"
+        )
+        self._split_cluster_checkbox.toggled.connect(self._on_split_cluster_toggled)
+        parent_layout.addWidget(self._split_cluster_checkbox)
+
+        self._split_cluster_group = QGroupBox("Split Cluster Column Headers")
+        form = QFormLayout(self._split_cluster_group)
+        self._split_cluster_edits = {}
+        for cluster in Cluster:
+            edit = QLineEdit()
+            edit.setPlaceholderText(f"Excel column header for {cluster.value}")
+            form.addRow(f"{cluster.value}:", edit)
+            self._split_cluster_edits[cluster.value] = edit
+
+        self._split_cluster_group.setEnabled(False)
+        parent_layout.addWidget(self._split_cluster_group)
+
+    def _on_split_cluster_toggled(self, checked: bool) -> None:
+        """Enable/disable split cluster group and cluster row in table."""
+        self._split_cluster_group.setEnabled(checked)
+        # Disable the cluster row in the students table when split is active
+        fields: list[str] = self._students_fields
+        if "cluster" in fields:
+            row = fields.index("cluster")
+            item = self._students_table.item(row, 1)
+            if item is not None:
+                if checked:
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                else:
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
 
     def _populate_from_preset(self, preset: ColumnMappingPreset) -> None:
         """Fill all tabs from the given preset.
@@ -260,6 +305,12 @@ class ColumnMappingDialog(QDialog):
         self._populate_table("teachers", preset.teacher_columns)
         self._populate_table("students", preset.student_columns)
         self._populate_table("classrooms", preset.classroom_columns)
+
+        # Populate split cluster columns
+        has_split = bool(preset.split_cluster_columns)
+        self._split_cluster_checkbox.setChecked(has_split)
+        for cluster_val, edit in self._split_cluster_edits.items():
+            edit.setText(preset.split_cluster_columns.get(cluster_val, ""))
 
     def _populate_table(
         self, entity: str, columns: dict[str, str]
@@ -289,6 +340,13 @@ class ColumnMappingDialog(QDialog):
         student_columns = self._collect_table("students")
         classroom_columns = self._collect_table("classrooms")
 
+        split_cluster_columns: dict[str, str] = {}
+        if self._split_cluster_checkbox.isChecked():
+            for cluster_val, edit in self._split_cluster_edits.items():
+                header = edit.text().strip()
+                if header:
+                    split_cluster_columns[cluster_val] = header
+
         return ColumnMappingPreset(
             name=self._current_preset_name or "New Preset",
             teachers_sheet=self._teachers_sheet_edit.text(),
@@ -297,6 +355,7 @@ class ColumnMappingDialog(QDialog):
             teacher_columns=teacher_columns,
             student_columns=student_columns,
             classroom_columns=classroom_columns,
+            split_cluster_columns=split_cluster_columns,
         )
 
     def _collect_table(self, entity: str) -> dict[str, str]:
