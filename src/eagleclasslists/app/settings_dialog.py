@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
 )
 
 from eagleclasslists.data.settings import (
+    BUILTIN_PRESET_NAMES,
     CLASSROOM_FIELDS,
     DEFAULT_PRESET,
     DEFAULT_PRESET_NAME,
@@ -102,6 +103,7 @@ class ColumnMappingDialog(QDialog):
     _split_cluster_checkbox: QCheckBox
     _split_cluster_edits: dict[str, QLineEdit]
     _split_cluster_group: QGroupBox
+    _ui_populated: bool
 
     def __init__(
         self,
@@ -112,6 +114,7 @@ class ColumnMappingDialog(QDialog):
         self._store = store
         self._presets: dict[str, ColumnMappingPreset] = {}
         self._current_preset_name: str | None = None
+        self._ui_populated = False
 
         self.setWindowTitle("Column Mapping Settings")
         self.setMinimumSize(800, 500)
@@ -119,6 +122,7 @@ class ColumnMappingDialog(QDialog):
 
         self._load_presets()
         self._setup_ui()
+        self._refresh_preset_list()
         self._select_preset(self._store.active_preset_name)
 
     def _load_presets(self) -> None:
@@ -260,9 +264,7 @@ class ColumnMappingDialog(QDialog):
 
     def _create_split_cluster_ui(self, parent_layout: QVBoxLayout) -> None:
         """Create the split cluster columns checkbox and field group."""
-        self._split_cluster_checkbox = QCheckBox(
-            "Use separate columns for each cluster type"
-        )
+        self._split_cluster_checkbox = QCheckBox("Use separate columns for each cluster type")
         self._split_cluster_checkbox.toggled.connect(self._on_split_cluster_toggled)
         parent_layout.addWidget(self._split_cluster_checkbox)
 
@@ -312,9 +314,9 @@ class ColumnMappingDialog(QDialog):
         for cluster_val, edit in self._split_cluster_edits.items():
             edit.setText(preset.split_cluster_columns.get(cluster_val, ""))
 
-    def _populate_table(
-        self, entity: str, columns: dict[str, str]
-    ) -> None:
+        self._ui_populated = True
+
+    def _populate_table(self, entity: str, columns: dict[str, str]) -> None:
         """Fill a column mapping table from preset data.
 
         Args:
@@ -408,6 +410,8 @@ class ColumnMappingDialog(QDialog):
         """Save current dialog values into the local presets dict."""
         if self._current_preset_name is None:
             return
+        if not self._ui_populated:
+            return
         preset = self._collect_preset()
         self._presets[self._current_preset_name] = preset
 
@@ -423,16 +427,12 @@ class ColumnMappingDialog(QDialog):
 
     def _on_add_preset(self) -> None:
         """Handle the Add Preset button click."""
-        name, ok = QInputDialog.getText(
-            self, "New Preset", "Preset name:"
-        )
+        name, ok = QInputDialog.getText(self, "New Preset", "Preset name:")
         if not ok or not name.strip():
             return
         name = name.strip()
         if name in self._presets:
-            QMessageBox.warning(
-                self, "Duplicate Name", f"A preset named '{name}' already exists."
-            )
+            QMessageBox.warning(self, "Duplicate Name", f"A preset named '{name}' already exists.")
             return
 
         new_preset = ColumnMappingPreset(name=name)
@@ -448,9 +448,7 @@ class ColumnMappingDialog(QDialog):
 
         name = current_item.text()
         if name == DEFAULT_PRESET_NAME:
-            QMessageBox.warning(
-                self, "Cannot Delete", "The default preset cannot be deleted."
-            )
+            QMessageBox.warning(self, "Cannot Delete", "The default preset cannot be deleted.")
             return
 
         reply = QMessageBox.question(
@@ -482,15 +480,14 @@ class ColumnMappingDialog(QDialog):
 
         existing_names = {p.name for p in self._store.list_presets()}
         for name, preset in self._presets.items():
-            if name == DEFAULT_PRESET_NAME:
+            # Skip built-in presets (cannot be deleted or modified)
+            if name in BUILTIN_PRESET_NAMES:
                 continue
             if name in existing_names:
                 self._store.delete_preset(name)
             self._store.add_preset(preset)
 
-        active = self._presets.get(
-            self._current_preset_name or DEFAULT_PRESET_NAME, DEFAULT_PRESET
-        )
+        active = self._presets.get(self._current_preset_name or DEFAULT_PRESET_NAME, DEFAULT_PRESET)
         self._store.active_preset = active
 
         self.accept()

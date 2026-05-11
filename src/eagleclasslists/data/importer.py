@@ -78,9 +78,11 @@ def _merge_split_cluster_columns(
                 pass
 
         if len(matched) > 1:
+            first_name = record.get("first_name", "UNKNOWN")
+            last_name = record.get("last_name", "UNKNOWN")
             raise ExcelImportError(
                 "Multiple cluster columns are set for a student",
-                f"A student has multiple cluster columns marked as Yes: "
+                f"Student {first_name} {last_name} has multiple cluster columns marked as Yes: "
                 f"{', '.join(matched)}. Only one cluster is allowed per student.",
             )
         if len(matched) == 1:
@@ -227,8 +229,7 @@ def load_teachers_from_excel(
     except pd.errors.ParserError as e:
         raise ExcelImportError(
             "Could not parse the Excel file",
-            f"The file appears to be corrupted or is not a valid Excel file. "
-            f"Technical error: {e}",
+            f"The file appears to be corrupted or is not a valid Excel file. Technical error: {e}",
         ) from e
     except pydantic.ValidationError as e:
         errors = []
@@ -239,8 +240,7 @@ def load_teachers_from_excel(
         error_details = "\n".join(errors)
         raise ExcelImportError(
             "Teacher data validation failed.",
-            f"Errors:\n{error_details}\n\n"
-            f"Required columns: Name, Clusters (optional).",
+            f"Errors:\n{error_details}\n\nRequired columns: Name, Clusters (optional).",
         ) from e
     except Exception as e:
         if isinstance(e, ExcelImportError):
@@ -273,19 +273,32 @@ def load_students_from_excel(
             renamed = rename_records_for_reading(records, preset.student_columns)
             if preset.split_cluster_columns:
                 _merge_split_cluster_columns(renamed, preset.split_cluster_columns)
+            # Validate each student individually to get better error messages
+            validation_errors = []
+            for _i, r in enumerate(renamed):
+                first_name = r.get("first_name", "UNKNOWN")
+                last_name = r.get("last_name", "UNKNOWN")
+                try:
+                    Student.model_validate(r)
+                except pydantic.ValidationError as ve:
+                    # Collect errors with student name
+                    for err in ve.errors():
+                        loc = err["loc"][0] if err["loc"] else "unknown"
+                        if loc not in ("first_name", "last_name"):
+                            validation_errors.append(
+                                f"  - {first_name} {last_name}: {loc} {err['msg']}"
+                            )
+            if validation_errors:
+                error_details = "\n".join(validation_errors)
+                raise ExcelImportError(
+                    "Student data validation failed.",
+                    f"Errors:\n{error_details}\n\n"
+                    f"Required columns: First Name, Last Name, Gender, Math, ELA, Behavior.\n"
+                    f"Optional columns: Cluster, Resource, Speech, Teacher, Exclusions.",
+                )
             return [Student.model_validate(r) for r in renamed]
-    except FileNotFoundError as e:
-        raise ExcelImportError(
-            "Excel file not found",
-            "The specified file could not be found. Please check the path.",
-        ) from e
-    except pd.errors.ParserError as e:
-        raise ExcelImportError(
-            "Could not parse the Excel file",
-            f"The file appears to be corrupted or is not a valid Excel file. "
-            f"Technical error: {e}",
-        ) from e
     except pydantic.ValidationError as e:
+        # Fallback for any validation errors not caught above
         errors = []
         for err in e.errors():
             loc = " -> ".join(str(x) for x in err["loc"])
@@ -297,6 +310,16 @@ def load_students_from_excel(
             f"Errors:\n{error_details}\n\n"
             f"Required columns: First Name, Last Name, Gender, Math, ELA, Behavior.\n"
             f"Optional columns: Cluster, Resource, Speech, Teacher, Exclusions.",
+        ) from e
+    except FileNotFoundError as e:
+        raise ExcelImportError(
+            "Excel file not found",
+            "The specified file could not be found. Please check the path.",
+        ) from e
+    except pd.errors.ParserError as e:
+        raise ExcelImportError(
+            "Could not parse the Excel file",
+            f"The file appears to be corrupted or is not a valid Excel file. Technical error: {e}",
         ) from e
     except Exception as e:
         if isinstance(e, ExcelImportError):
@@ -330,16 +353,12 @@ def load_classrooms_from_excel(
         ExcelImportError: If references cannot be resolved.
     """
     teacher_dict: dict[str, Teacher] = {t.name: t for t in teachers}
-    student_dict: dict[str, Student] = {
-        f"{s.first_name}_{s.last_name}": s for s in students
-    }
+    student_dict: dict[str, Student] = {f"{s.first_name}_{s.last_name}": s for s in students}
 
     try:
         with pd.ExcelFile(filepath) as ef:
             raw_records = _sheet_to_clean_records(ef, preset.classrooms_sheet)
-            records = rename_records_for_reading(
-                raw_records, preset.classroom_columns
-            )
+            records = rename_records_for_reading(raw_records, preset.classroom_columns)
     except FileNotFoundError as e:
         raise ExcelImportError(
             "Excel file not found",
@@ -348,8 +367,7 @@ def load_classrooms_from_excel(
     except pd.errors.ParserError as e:
         raise ExcelImportError(
             "Could not parse the Excel file",
-            f"The file appears to be corrupted or is not a valid Excel file. "
-            f"Technical error: {e}",
+            f"The file appears to be corrupted or is not a valid Excel file. Technical error: {e}",
         ) from e
     except Exception as e:
         if isinstance(e, ExcelImportError):

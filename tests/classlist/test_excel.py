@@ -274,14 +274,16 @@ class TestStudentsExcel:
 
         filepath = tmp_path / "invalid.xlsx"
         with pd.ExcelWriter(filepath) as writer:
-            df = pd.DataFrame({
-                "First Name": ["Alice"],
-                "Last Name": ["Anderson"],
-                "Gender": ["InvalidValue"],
-                "Math": ["High"],
-                "ELA": ["High"],
-                "Behavior": ["High"],
-            })
+            df = pd.DataFrame(
+                {
+                    "First Name": ["Alice"],
+                    "Last Name": ["Anderson"],
+                    "Gender": ["InvalidValue"],
+                    "Math": ["High"],
+                    "ELA": ["High"],
+                    "Behavior": ["High"],
+                }
+            )
             df.to_excel(writer, sheet_name="Students", index=False)
 
         with pytest.raises(ExcelImportError) as exc_info:
@@ -343,9 +345,7 @@ class TestClassroomsExcel:
 
         filepath = tmp_path / "classrooms.xlsx"
         save_classrooms_to_excel(classes, filepath)
-        loaded = load_classrooms_from_excel(
-            filepath, sample_teachers, sample_students
-        )
+        loaded = load_classrooms_from_excel(filepath, sample_teachers, sample_students)
 
         assert len(loaded) == 2
 
@@ -362,9 +362,7 @@ class TestClassroomsExcel:
     ) -> None:
         filepath = tmp_path / "empty_classrooms.xlsx"
         save_classrooms_to_excel([], filepath)
-        loaded = load_classrooms_from_excel(
-            filepath, sample_teachers, sample_students
-        )
+        loaded = load_classrooms_from_excel(filepath, sample_teachers, sample_students)
         assert len(loaded) == 0
 
     def test_single_classroom_single_student(
@@ -376,9 +374,7 @@ class TestClassroomsExcel:
         classroom = Classroom(teacher=sample_teachers[0], students=[sample_students[0]])
         filepath = tmp_path / "single.xlsx"
         save_classrooms_to_excel([classroom], filepath)
-        loaded = load_classrooms_from_excel(
-            filepath, sample_teachers, sample_students
-        )
+        loaded = load_classrooms_from_excel(filepath, sample_teachers, sample_students)
         assert len(loaded) == 1
         assert loaded[0].teacher.name == "Ms. Smith"
         assert len(loaded[0].students) == 1
@@ -393,11 +389,13 @@ class TestClassroomsExcel:
 
         filepath = tmp_path / "bad_teacher.xlsx"
         with pd.ExcelWriter(filepath) as writer:
-            df = pd.DataFrame({
-                "Teacher Name": ["Unknown Teacher"],
-                "Student First Name": ["Alice"],
-                "Student Last Name": ["Anderson"],
-            })
+            df = pd.DataFrame(
+                {
+                    "Teacher Name": ["Unknown Teacher"],
+                    "Student First Name": ["Alice"],
+                    "Student Last Name": ["Anderson"],
+                }
+            )
             df.to_excel(writer, sheet_name="Classrooms", index=False)
 
         with pytest.raises(ExcelImportError) as exc_info:
@@ -414,11 +412,13 @@ class TestClassroomsExcel:
 
         filepath = tmp_path / "bad_student.xlsx"
         with pd.ExcelWriter(filepath) as writer:
-            df = pd.DataFrame({
-                "Teacher Name": ["Ms. Smith"],
-                "Student First Name": ["Unknown"],
-                "Student Last Name": ["Student"],
-            })
+            df = pd.DataFrame(
+                {
+                    "Teacher Name": ["Ms. Smith"],
+                    "Student First Name": ["Unknown"],
+                    "Student Last Name": ["Student"],
+                }
+            )
             df.to_excel(writer, sheet_name="Classrooms", index=False)
 
         with pytest.raises(ExcelImportError) as exc_info:
@@ -535,9 +535,7 @@ class TestExclusionsExcel:
 
         loaded = load_students_from_excel(filepath)
 
-        alice = next(
-            s for s in loaded if s.first_name == "Alice" and s.last_name == "Anderson"
-        )
+        alice = next(s for s in loaded if s.first_name == "Alice" and s.last_name == "Anderson")
         assert len(alice.exclusions) == 2
         assert "Bob Brown" in alice.exclusions
         assert "Charlie Clark" in alice.exclusions
@@ -938,22 +936,27 @@ class TestSplitClusterColumns:
 
         filepath = tmp_path / "multi_true.xlsx"
         with pd.ExcelWriter(filepath) as writer:
-            df = pd.DataFrame({
-                "First Name": ["Alice"],
-                "Last Name": ["Anderson"],
-                "Gender": ["Female"],
-                "Math": ["High"],
-                "ELA": ["High"],
-                "Behavior": ["High"],
-                "Academically Challenged": ["Yes"],
-                "Gifted Education": ["Yes"],
-                "English Learner": ["No"],
-            })
+            df = pd.DataFrame(
+                {
+                    "First Name": ["Alice"],
+                    "Last Name": ["Anderson"],
+                    "Gender": ["Female"],
+                    "Math": ["High"],
+                    "ELA": ["High"],
+                    "Behavior": ["High"],
+                    "Academically Challenged": ["Yes"],
+                    "Gifted Education": ["Yes"],
+                    "English Learner": ["No"],
+                }
+            )
             df.to_excel(writer, sheet_name="Students", index=False)
 
         with pytest.raises(ExcelImportError) as exc_info:
             load_students_from_excel(filepath, preset=SPLIT_CLUSTER_PRESET)
-        assert "multiple" in str(exc_info.value).lower()
+        error_msg = str(exc_info.value)
+        assert "multiple" in error_msg.lower()
+        assert exc_info.value.details is not None
+        assert "Alice Anderson" in exc_info.value.details
 
     def test_partial_mapping_unmapped_cluster_preserved(self, tmp_path: Path) -> None:
         """Only AC and GEM are split; EL student keeps the single column."""
@@ -1000,15 +1003,17 @@ class TestSplitClusterColumns:
 
         filepath = tmp_path / "blanks.xlsx"
         with pd.ExcelWriter(filepath) as writer:
-            df = pd.DataFrame({
-                "First Name": ["Alice"],
-                "Last Name": ["Anderson"],
-                "Gender": ["Female"],
-                "Math": ["High"],
-                "ELA": ["High"],
-                "Behavior": ["High"],
-                # All split columns blank/absent — pandas will write NaN
-            })
+            df = pd.DataFrame(
+                {
+                    "First Name": ["Alice"],
+                    "Last Name": ["Anderson"],
+                    "Gender": ["Female"],
+                    "Math": ["High"],
+                    "ELA": ["High"],
+                    "Behavior": ["High"],
+                    # All split columns blank/absent — pandas will write NaN
+                }
+            )
             df.to_excel(writer, sheet_name="Students", index=False)
 
         loaded = load_students_from_excel(filepath, preset=SPLIT_CLUSTER_PRESET)

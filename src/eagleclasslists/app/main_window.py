@@ -133,12 +133,16 @@ class MainWindow(QMainWindow):
 
     def _create_toolbar(self) -> None:
         """Create the toolbar with grade selection dropdown."""
+        from PySide6.QtWidgets import QSizePolicy
+
         toolbar_widget = QWidget()
         toolbar_layout = QHBoxLayout(toolbar_widget)
         toolbar_layout.setContentsMargins(4, 2, 4, 2)
+        toolbar_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         grade_label = QLabel("Grade:")
         self._grade_combo = QComboBox()
+        self._grade_combo.setMaximumWidth(200)
         self._grade_combo.currentTextChanged.connect(self._on_grade_selected)
 
         toolbar_layout.addWidget(grade_label)

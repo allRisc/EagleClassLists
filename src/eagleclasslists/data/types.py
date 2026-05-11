@@ -140,6 +140,8 @@ def _pydantic_bool_parser(val: Any) -> bool:
             return True
         if cleaned in ("false", "no", "n", "0"):
             return False
+        if 'no' in cleaned:
+            return False
 
     raise ValueError(f"Cannot parse {val!r} as a boolean")
 

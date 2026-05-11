@@ -180,10 +180,10 @@ ESTES_PRESET = ColumnMappingPreset(
         "last_name": "Student Last Name",
         "gender": "Gender:",
         "math": "Math Level",
-        "ela": "ELA - Reading",
-        "behavior": "Please indicate a performance level for each characteristic: " +
-                    " [Follows behavioral expectations]",
-        "grade": "Grade:",
+        "ela": "ELA- Reading",
+        "behavior": "Please indicate a performance level for each characteristic: "
+        + " [Follows behavioral expectations]",
+        "grade": "Grade level for 26-27:",
         "teacher": "Teacher",
         "cluster": "Cluster",
         "resource": "On the IEP, qualifies for... [Parapro support?]",
@@ -203,6 +203,11 @@ ESTES_PRESET = ColumnMappingPreset(
         "student_first_name": "Student First Name",
         "student_last_name": "Student Last Name",
         "student_grade": "Student Grade",
+    },
+    split_cluster_columns={
+        "AC": "On the IEP, qualifies for... [Adaptive Cluster?]",
+        "GEM": "Qualifies for GEM?",
+        "EL": "Qualifies for EL?",
     },
 )
 """Estes Format preset with custom column headers for Estes Elementary."""
@@ -260,9 +265,7 @@ class ColumnMappingStore:
         """Return the currently active preset, loading from disk if needed."""
         if not self._loaded:
             self.load()
-        return self._presets.get(
-            self._active_preset_name, DEFAULT_PRESET
-        )
+        return self._presets.get(self._active_preset_name, DEFAULT_PRESET)
 
     @active_preset.setter
     def active_preset(self, preset: ColumnMappingPreset) -> None:
@@ -300,20 +303,14 @@ class ColumnMappingStore:
         """Return only built-in presets that cannot be modified."""
         if not self._loaded:
             self.load()
-        return [
-            self._presets[name]
-            for name in BUILTIN_PRESET_NAMES
-            if name in self._presets
-        ]
+        return [self._presets[name] for name in BUILTIN_PRESET_NAMES if name in self._presets]
 
     def list_custom_presets(self) -> list[ColumnMappingPreset]:
         """Return only user-created custom presets that can be modified."""
         if not self._loaded:
             self.load()
         return [
-            preset
-            for name, preset in self._presets.items()
-            if name not in BUILTIN_PRESET_NAMES
+            preset for name, preset in self._presets.items() if name not in BUILTIN_PRESET_NAMES
         ]
 
     def get_preset(self, name: str) -> ColumnMappingPreset:
@@ -369,9 +366,7 @@ class ColumnMappingStore:
             return
 
         # Start with all built-in presets (these cannot be deleted or modified)
-        self._presets = {
-            preset.name: preset.model_copy() for preset in BUILTIN_PRESETS
-        }
+        self._presets = {preset.name: preset.model_copy() for preset in BUILTIN_PRESETS}
 
         # Load custom presets from disk, but don't override built-ins
         presets_file = self._config_dir / "column_mappings.json"
@@ -384,7 +379,7 @@ class ColumnMappingStore:
                     if preset.name not in BUILTIN_PRESET_NAMES:
                         self._presets[preset.name] = preset
                 self._active_preset_name = data.get("active_preset", DEFAULT_PRESET_NAME)
-            except (json.JSONDecodeError, pydantic.ValidationError):
+            except json.JSONDecodeError, pydantic.ValidationError:
                 pass
 
         if self._active_preset_name not in self._presets:
@@ -398,9 +393,7 @@ class ColumnMappingStore:
         presets_file = self._config_dir / "column_mappings.json"
         # Only save custom presets (not built-in ones)
         custom_presets = [
-            p.model_dump()
-            for name, p in self._presets.items()
-            if name not in BUILTIN_PRESET_NAMES
+            p.model_dump() for name, p in self._presets.items() if name not in BUILTIN_PRESET_NAMES
         ]
         data = {
             "active_preset": self._active_preset_name,
@@ -428,8 +421,7 @@ def rename_records_for_reading(
     """
     reverse_map = {v: k for k, v in column_map.items()}
     return [
-        {reverse_map.get(key, key): value for key, value in record.items()}
-        for record in records
+        {reverse_map.get(key, key): value for key, value in record.items()} for record in records
     ]
 
 
@@ -447,8 +439,7 @@ def rename_records_for_writing(
         Records with keys renamed to Excel column headers.
     """
     return [
-        {column_map.get(key, key): value for key, value in record.items()}
-        for record in records
+        {column_map.get(key, key): value for key, value in record.items()} for record in records
     ]
 
 

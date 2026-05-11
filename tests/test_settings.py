@@ -51,8 +51,8 @@ class TestColumnMappingPreset:
         assert ESTES_PRESET.name == "Estes Format"
         assert ESTES_PRESET.students_sheet == "Student Data"
         assert ESTES_PRESET.teachers_sheet == "Teacher Data"
-        assert ESTES_PRESET.student_columns["first_name"] == "Student First"
-        assert ESTES_PRESET.student_columns["gender"] == "G"
+        assert ESTES_PRESET.student_columns["first_name"] == "Student First Name"
+        assert ESTES_PRESET.student_columns["gender"] == "Gender:"
 
     def test_builtin_presets_list(self) -> None:
         assert len(BUILTIN_PRESETS) == 2
@@ -357,7 +357,12 @@ class TestRequiredFields:
 
     def test_required_student_fields(self) -> None:
         assert REQUIRED_STUDENT_FIELDS == {
-            "first_name", "last_name", "gender", "math", "ela", "behavior"
+            "first_name",
+            "last_name",
+            "gender",
+            "math",
+            "ela",
+            "behavior",
         }
 
     def test_required_teacher_fields(self) -> None:
@@ -365,5 +370,7 @@ class TestRequiredFields:
 
     def test_required_classroom_fields(self) -> None:
         assert REQUIRED_CLASSROOM_FIELDS == {
-            "teacher_name", "student_first_name", "student_last_name"
+            "teacher_name",
+            "student_first_name",
+            "student_last_name",
         }
