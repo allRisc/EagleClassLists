@@ -39,7 +39,9 @@ from eagleclasslists.data.importer import (
     save_teachers_to_excel,
 )
 from eagleclasslists.data.settings import (
+    DEFAULT_PRESET,
     ColumnMappingPreset,
+    ColumnMappingStore,
 )
 from eagleclasslists.data.types import Academic
 
@@ -429,7 +431,9 @@ class TestGradeListModelWithExcel:
         filepath = tmp_path / "teachers.xlsx"
         save_teachers_to_excel(sample_teachers_with_grades, filepath)
 
-        model = GradeListModel(GradeList(teachers=[], students=[]))
+        store = ColumnMappingStore()
+        store.active_preset = DEFAULT_PRESET
+        model = GradeListModel(GradeList(teachers=[], students=[]), settings_store=store)
         model.load_teachers(filepath)
 
         assert model.has_grade_data is True
@@ -471,7 +475,9 @@ class TestGradeListModelWithExcel:
         students_path = tmp_path / "students.xlsx"
         save_students_to_excel(sample_students_with_grades, students_path)
 
-        model = GradeListModel(GradeList(teachers=[], students=[]))
+        store = ColumnMappingStore()
+        store.active_preset = DEFAULT_PRESET
+        model = GradeListModel(GradeList(teachers=[], students=[]), settings_store=store)
         model.load_teachers(teachers_path)
         model.load_students(students_path)
 
