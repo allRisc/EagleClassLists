@@ -11,6 +11,7 @@ from eagleclasslists.classlist import (
     Student,
     Teacher,
 )
+
 from eagleclasslists.fitness import get_fitness_breakdown
 
 # Create scenario with 3 GEM students, 1 with wrong teacher

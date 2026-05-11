@@ -10,6 +10,7 @@ from eagleclasslists.classlist import (
     Student,
     Teacher,
 )
+
 from eagleclasslists.fitness import FitnessWeights, get_fitness_breakdown
 from eagleclasslists.simulated_annealing import AnnealingConfig, optimize_grade_list
 

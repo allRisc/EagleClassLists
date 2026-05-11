@@ -172,7 +172,7 @@ wheels = [
 
 [[package]]
 name = "eagleclasslists"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "openpyxl" },
@@ -186,7 +186,6 @@ dev = [
     { name = "pandas-stubs" },
     { name = "pyinstaller" },
     { name = "pyside6-stubs" },
-    { name = "pytest" },
     { name = "ruff" },
     { name = "tox" },
     { name = "tox-uv" },
@@ -221,7 +220,6 @@ dev = [
     { name = "pandas-stubs" },
     { name = "pyinstaller", specifier = ">=6.19.0" },
     { name = "pyside6-stubs", specifier = ">=6.7.0" },
-    { name = "pytest", specifier = ">=9.0.3" },
     { name = "ruff", specifier = ">=0.13.0" },
     { name = "tox", specifier = ">=4.25.0" },
     { name = "tox-uv", specifier = ">=1.13.1" },
