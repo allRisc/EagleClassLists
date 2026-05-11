@@ -31,6 +31,7 @@ extensions = [
     "myst_parser",
 ]
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
+autodoc_default_options = {"members": True, "no-index": True}
 
 myst_header_anchors = 2
 

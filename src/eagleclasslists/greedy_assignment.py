@@ -38,11 +38,9 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from eagleclasslists.classlist import Classroom, GradeList, Student
-    from eagleclasslists.fitness import FitnessWeights
+from eagleclasslists.data.classlist import Classroom, GradeList, Student
+from eagleclasslists.fitness import FitnessWeights, calculate_fitness
 
 
 class ImpossibleConstraintsError(Exception):
@@ -98,8 +96,6 @@ def greedy_assign_students(
             classroom due to exclusion constraints (not enough classrooms to
             separate excluded students).
     """
-    from eagleclasslists.fitness import calculate_fitness
-
     # Create a deep copy to avoid modifying the original
     result = _copy_grade_list(grade_list)
 
@@ -210,8 +206,6 @@ def _find_best_classroom(
     Returns:
         The index of the best classroom, or None if no valid classroom exists.
     """
-    from eagleclasslists.fitness import calculate_fitness
-
     if not grade_list.classes:
         return None
 
@@ -244,10 +238,12 @@ def _is_valid_assignment(classroom: Classroom, student: Student) -> bool:
     """Check if a student can be assigned to a classroom.
 
     Validates hard constraints:
-    - Teacher request: if student has a request, must match classroom's teacher
+
+    - Teacher request: if student has a request, must match classroom's
+      teacher
     - Cluster: if student has a cluster, teacher must be qualified
-    - Exclusions: bidirectional - student cannot be with anyone they exclude,
-      and cannot be with anyone who excludes them
+    - Exclusions: bidirectional - student cannot be with anyone they
+      exclude, and cannot be with anyone who excludes them
 
     Args:
         classroom: The classroom to check.
@@ -335,8 +331,6 @@ def _copy_grade_list(grade_list: GradeList) -> GradeList:
     Returns:
         A new GradeList with copied students and classrooms.
     """
-    from eagleclasslists.classlist import Classroom, GradeList
-
     # Copy teachers (shared reference is fine)
     teachers = list(grade_list.teachers)
 

@@ -26,15 +26,16 @@ where 1 represents a perfectly balanced distribution.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from eagleclasslists.classlist import (
-        GradeList,
-        Student,
-    )
+from eagleclasslists.data.classlist import (
+    GradeList,
+    Student,
+)
+from eagleclasslists.data.types import Academic, Behavior, Gender
 
 
 @dataclass
@@ -225,8 +226,6 @@ def _calculate_gender_balance(grade_list: GradeList) -> float:
     Returns:
         A score between 0 and 1, where 1 means perfect gender balance.
     """
-    from eagleclasslists.classlist import Gender
-
     return _calculate_enum_balance(grade_list, lambda s: s.gender, [Gender.MALE, Gender.FEMALE])
 
 
@@ -242,12 +241,10 @@ def _calculate_math_balance(grade_list: GradeList) -> float:
     Returns:
         A score between 0 and 1, where 1 means perfect balance.
     """
-    from eagleclasslists.classlist import Math
-
     return _calculate_enum_balance(
         grade_list,
         lambda s: s.math,
-        [Math.HIGH, Math.MEDIUM, Math.LOW],
+        [Academic.HIGH, Academic.MEDIUM, Academic.LOW],
     )
 
 
@@ -263,12 +260,10 @@ def _calculate_ela_balance(grade_list: GradeList) -> float:
     Returns:
         A score between 0 and 1, where 1 means perfect balance.
     """
-    from eagleclasslists.classlist import ELA
-
     return _calculate_enum_balance(
         grade_list,
         lambda s: s.ela,
-        [ELA.HIGH, ELA.MEDIUM, ELA.LOW],
+        [Academic.HIGH, Academic.MEDIUM, Academic.LOW],
     )
 
 
@@ -283,8 +278,6 @@ def _calculate_behavior_balance(grade_list: GradeList) -> float:
     Returns:
         A score between 0 and 1, where 1 means perfect balance.
     """
-    from eagleclasslists.classlist import Behavior
-
     return _calculate_enum_balance(
         grade_list,
         lambda s: s.behavior,
@@ -352,8 +345,6 @@ def _calculate_class_size_balance(grade_list: GradeList) -> float:
 
     # Convert CV to score (CV of 0 -> score of 1, higher CV -> lower score)
     # Using exponential decay: score = exp(-2 * CV)
-    import math
-
     score = math.exp(-2 * cv)
     return score
 
@@ -421,8 +412,6 @@ def _calculate_enum_balance(
 
     # Convert deviation to score (lower deviation -> higher score)
     # Using exponential decay: score = exp(-avg_deviation)
-    import math
-
     score = math.exp(-avg_deviation)
     return score
 
@@ -466,8 +455,6 @@ def _calculate_boolean_balance(grade_list: GradeList, getter: Callable[[Student]
     avg_deviation = sum(deviations) / len(deviations)
 
     # Convert deviation to score
-    import math
-
     score = math.exp(-avg_deviation)
     return score
 

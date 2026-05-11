@@ -23,6 +23,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QFormLayout,
     QFrame,
@@ -38,7 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 from eagleclasslists.app.grade_list_model import GradeListModel
-from eagleclasslists.classlist import Cluster, Teacher
+from eagleclasslists.data.classlist import Cluster, Teacher
 
 
 class TeacherFormDialog(QDialog):
@@ -66,6 +67,11 @@ class TeacherFormDialog(QDialog):
         info_layout = QFormLayout()
 
         self.name_edit = QLineEdit()
+        self.grade_combo = QComboBox()
+        self.grade_combo.setEditable(True)
+        self.grade_combo.addItem("")
+        for grade in self.model.available_grades:
+            self.grade_combo.addItem(grade)
 
         self.cluster_checks: dict[Cluster, QCheckBox] = {}
         cluster_layout = QVBoxLayout()
@@ -75,6 +81,7 @@ class TeacherFormDialog(QDialog):
             cluster_layout.addWidget(check)
 
         info_layout.addRow("Name:", self.name_edit)
+        info_layout.addRow("Grade:", self.grade_combo)
         info_layout.addRow("Cluster Qualifications:", cluster_layout)
         info_group.setLayout(info_layout)
         layout.addWidget(info_group)
@@ -93,6 +100,12 @@ class TeacherFormDialog(QDialog):
 
     def _populate_fields(self, teacher: Teacher) -> None:
         self.name_edit.setText(teacher.name)
+        if teacher.grade is not None:
+            grade_index = self.grade_combo.findText(teacher.grade)
+            if grade_index >= 0:
+                self.grade_combo.setCurrentIndex(grade_index)
+            else:
+                self.grade_combo.setEditText(teacher.grade)
         for cluster in teacher.clusters:
             if cluster in self.cluster_checks:
                 self.cluster_checks[cluster].setChecked(True)
@@ -119,7 +132,10 @@ class TeacherFormDialog(QDialog):
             cluster for cluster, check in self.cluster_checks.items() if check.isChecked()
         ]
 
-        teacher = Teacher(name=name, clusters=clusters)
+        grade_value = self.grade_combo.currentText().strip()
+        grade = grade_value if grade_value else None
+
+        teacher = Teacher(name=name, grade=grade, clusters=clusters)
 
         if self.editing_teacher:
             self.model.update_teacher(self.editing_teacher.name, teacher)
@@ -235,7 +251,11 @@ class TeachersView(QWidget):
         teachers = self.model.grade_list.teachers
 
         if not teachers:
-            label = QLabel("No teachers added yet.")
+            if self.model.teachers_loaded:
+                msg = "No teachers in the loaded file."
+            else:
+                msg = "No teachers loaded. Use File > Open Teachers to load."
+            label = QLabel(msg)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setStyleSheet("font-size: 14px; color: #888; padding: 20px;")
             self.scroll_layout.addWidget(label)

@@ -20,16 +20,17 @@
 
 from __future__ import annotations
 
-from eagleclasslists.classlist import (
-    ELA,
-    Behavior,
+from eagleclasslists.data.classlist import (
     Classroom,
-    Cluster,
-    Gender,
     GradeList,
-    Math,
     Student,
     Teacher,
+)
+from eagleclasslists.data.types import (
+    Academic,
+    Behavior,
+    Cluster,
+    Gender,
 )
 from eagleclasslists.fitness import (
     FitnessWeights,
@@ -81,8 +82,8 @@ class TestClusterScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -99,8 +100,8 @@ class TestClusterScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -119,8 +120,8 @@ class TestClusterScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -128,8 +129,8 @@ class TestClusterScore:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.MEDIUM,
-            ela=ELA.MEDIUM,
+            math=Academic.MEDIUM,
+            ela=Academic.MEDIUM,
             behavior=Behavior.MEDIUM,
             cluster=Cluster.GEM,
         )
@@ -154,8 +155,8 @@ class TestClusterScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=None,
         )
@@ -176,8 +177,8 @@ class TestTeacherRequestScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Ms. Smith",  # Requested teacher
         )
@@ -195,8 +196,8 @@ class TestTeacherRequestScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Ms. Smith",  # Requested Ms. Smith
         )
@@ -218,8 +219,8 @@ class TestTeacherRequestScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Ms. Smith",  # Requested Ms. Smith, got Ms. Smith
         )
@@ -227,8 +228,8 @@ class TestTeacherRequestScore:
             first_name="Bob",
             last_name="Brown",
             gender=Gender.MALE,
-            math=Math.MEDIUM,
-            ela=ELA.MEDIUM,
+            math=Academic.MEDIUM,
+            ela=Academic.MEDIUM,
             behavior=Behavior.MEDIUM,
             teacher="Ms. Smith",  # Requested Ms. Smith, but got Mr. Jones
         )
@@ -253,8 +254,8 @@ class TestTeacherRequestScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher=None,  # No teacher request
         )
@@ -273,8 +274,8 @@ class TestTeacherRequestScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="Ms. Smith",  # Requested Ms. Smith
         )
@@ -295,8 +296,8 @@ class TestTeacherRequestScore:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             teacher="",  # Empty string should be treated as no request
         )
@@ -321,16 +322,16 @@ class TestGenderBalance:
                 first_name="Alice",
                 last_name="Anderson",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             ),
             Student(
                 first_name="Bob",
                 last_name="Brown",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             ),
         ]
@@ -339,16 +340,16 @@ class TestGenderBalance:
                 first_name="Carol",
                 last_name="Clark",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             ),
             Student(
                 first_name="David",
                 last_name="Davis",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             ),
         ]
@@ -376,8 +377,8 @@ class TestGenderBalance:
                 first_name=f"Girl{i}",
                 last_name=f"Name{i}",
                 gender=Gender.FEMALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(5)
@@ -387,8 +388,8 @@ class TestGenderBalance:
                 first_name=f"Boy{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(5)
@@ -420,8 +421,8 @@ class TestClassSizeBalance:
                 first_name=f"Student{i}",
                 last_name="Smith",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(10)
@@ -431,8 +432,8 @@ class TestClassSizeBalance:
                 first_name=f"Student{i}",
                 last_name="Jones",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(10)
@@ -460,8 +461,8 @@ class TestClassSizeBalance:
                 first_name=f"Student{i}",
                 last_name="Smith",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(20)
@@ -471,8 +472,8 @@ class TestClassSizeBalance:
                 first_name=f"Student{i}",
                 last_name="Jones",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
             )
             for i in range(5)
@@ -506,8 +507,8 @@ class TestResourceAndSpeechBalance:
                 first_name=f"Student{i}",
                 last_name="Smith",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
                 resource=(i < 2),  # First 2 have resource
             )
@@ -518,8 +519,8 @@ class TestResourceAndSpeechBalance:
                 first_name=f"Student{i}",
                 last_name="Jones",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
                 resource=(i < 2),  # First 2 have resource
             )
@@ -549,8 +550,8 @@ class TestResourceAndSpeechBalance:
                 first_name=f"Student{i}",
                 last_name="Smith",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
                 speech=True,
             )
@@ -561,8 +562,8 @@ class TestResourceAndSpeechBalance:
                 first_name=f"Student{i}",
                 last_name="Jones",
                 gender=Gender.MALE,
-                math=Math.HIGH,
-                ela=ELA.HIGH,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
                 behavior=Behavior.HIGH,
                 speech=False,
             )
@@ -592,8 +593,8 @@ class TestOverallFitness:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student])
@@ -618,8 +619,8 @@ class TestOverallFitness:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
             cluster=Cluster.GEM,
         )
@@ -628,8 +629,8 @@ class TestOverallFitness:
                 first_name=f"Student{i}",
                 last_name=f"Name{i}",
                 gender=Gender.MALE if i % 2 == 0 else Gender.FEMALE,
-                math=Math.MEDIUM,
-                ela=ELA.MEDIUM,
+                math=Academic.MEDIUM,
+                ela=Academic.MEDIUM,
                 behavior=Behavior.MEDIUM,
             )
             for i in range(6)
@@ -667,8 +668,8 @@ class TestFitnessBreakdown:
             first_name="Alice",
             last_name="Anderson",
             gender=Gender.FEMALE,
-            math=Math.HIGH,
-            ela=ELA.HIGH,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
             behavior=Behavior.HIGH,
         )
         classroom = Classroom(teacher=teacher, students=[student])

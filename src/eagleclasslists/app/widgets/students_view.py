@@ -40,7 +40,8 @@ from PySide6.QtWidgets import (
 )
 
 from eagleclasslists.app.grade_list_model import GradeListModel
-from eagleclasslists.classlist import ELA, Behavior, Cluster, Gender, Math, Student
+from eagleclasslists.data.classlist import Behavior, Cluster, Gender, Student
+from eagleclasslists.data.types import Academic
 
 
 class StudentFormDialog(QDialog):
@@ -77,9 +78,16 @@ class StudentFormDialog(QDialog):
         for gender in Gender:
             self.gender_combo.addItem(gender.value)
 
+        self.grade_combo = QComboBox()
+        self.grade_combo.setEditable(True)
+        self.grade_combo.addItem("")
+        for grade in self.model.available_grades:
+            self.grade_combo.addItem(grade)
+
         personal_layout.addRow("First Name:", self.first_name_edit)
         personal_layout.addRow("Last Name:", self.last_name_edit)
         personal_layout.addRow("Gender:", self.gender_combo)
+        personal_layout.addRow("Grade:", self.grade_combo)
         personal_group.setLayout(personal_layout)
         left_column.addWidget(personal_group)
 
@@ -87,11 +95,11 @@ class StudentFormDialog(QDialog):
         academic_layout = QFormLayout()
 
         self.math_combo = QComboBox()
-        for math_level in Math:
+        for math_level in Academic:
             self.math_combo.addItem(math_level.value)
 
         self.ela_combo = QComboBox()
-        for ela_level in ELA:
+        for ela_level in Academic:
             self.ela_combo.addItem(ela_level.value)
 
         self.behavior_combo = QComboBox()
@@ -174,9 +182,16 @@ class StudentFormDialog(QDialog):
         self.first_name_edit.setText(student.first_name)
         self.last_name_edit.setText(student.last_name)
 
+        if student.grade is not None:
+            grade_index = self.grade_combo.findText(student.grade)
+            if grade_index >= 0:
+                self.grade_combo.setCurrentIndex(grade_index)
+            else:
+                self.grade_combo.setEditText(student.grade)
+
         self.gender_combo.setCurrentIndex(list(Gender).index(student.gender))
-        self.math_combo.setCurrentIndex(list(Math).index(student.math))
-        self.ela_combo.setCurrentIndex(list(ELA).index(student.ela))
+        self.math_combo.setCurrentIndex(list(Academic).index(student.math))
+        self.ela_combo.setCurrentIndex(list(Academic).index(student.ela))
         self.behavior_combo.setCurrentIndex(list(Behavior).index(student.behavior))
 
         if student.cluster:
@@ -233,6 +248,9 @@ class StudentFormDialog(QDialog):
         teacher_value = self.teacher_combo.currentText()
         teacher = None if teacher_value == "None" else teacher_value
 
+        grade_value = self.grade_combo.currentText().strip()
+        grade = grade_value if grade_value else None
+
         exclusions = []
         for i in range(self.exclusions_list.count()):
             item = self.exclusions_list.item(i)
@@ -243,9 +261,10 @@ class StudentFormDialog(QDialog):
             first_name=first_name,
             last_name=last_name,
             gender=list(Gender)[self.gender_combo.currentIndex()],
-            math=list(Math)[self.math_combo.currentIndex()],
-            ela=list(ELA)[self.ela_combo.currentIndex()],
+            math=list(Academic)[self.math_combo.currentIndex()],
+            ela=list(Academic)[self.ela_combo.currentIndex()],
             behavior=list(Behavior)[self.behavior_combo.currentIndex()],
+            grade=grade,
             cluster=cluster,
             resource=self.resource_checkbox.isChecked(),
             speech=self.speech_checkbox.isChecked(),
@@ -366,7 +385,11 @@ class StudentsView(QWidget):
         students = self.model.grade_list.students
 
         if not students:
-            label = QLabel("No students added yet.")
+            if self.model.students_loaded:
+                msg = "No students in the loaded file."
+            else:
+                msg = "No students loaded. Use File > Open Students to load."
+            label = QLabel(msg)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setStyleSheet("font-size: 14px; color: #888; padding: 20px;")
             self.scroll_layout.addWidget(label)

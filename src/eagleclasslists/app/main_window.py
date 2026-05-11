@@ -23,15 +23,22 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
+    QComboBox,
+    QDialog,
     QFileDialog,
+    QHBoxLayout,
+    QLabel,
     QListWidget,
     QMainWindow,
     QMessageBox,
     QSplitter,
     QStackedWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 from eagleclasslists.app.grade_list_model import GradeListModel
+from eagleclasslists.app.settings_dialog import ColumnMappingDialog
 from eagleclasslists.app.widgets import (
     ClassroomsView,
     StudentsView,
@@ -39,7 +46,10 @@ from eagleclasslists.app.widgets import (
 )
 from eagleclasslists.app.widgets.students_view import StudentFormDialog
 from eagleclasslists.app.widgets.teachers_view import TeacherFormDialog
-from eagleclasslists.classlist import ExcelImportError, GradeList
+from eagleclasslists.data.classlist import GradeList
+from eagleclasslists.data.errors import ExcelImportError
+
+_ALL_GRADES_LABEL = "All Grades"
 
 
 class MainWindow(QMainWindow):
@@ -49,8 +59,14 @@ class MainWindow(QMainWindow):
         self.students_view = StudentsView(self.model)
         self.setWindowTitle("Eagle Class Lists")
 
+        self._grade_combo: QComboBox | None = None
+
         self._create_menu_bar()
+        self._create_toolbar()
         self._create_sidebar_and_views()
+
+        self.model.grades_changed.connect(self._on_grades_changed)
+        self._update_grade_combo_visibility()
 
         self.show()
 
@@ -65,15 +81,33 @@ class MainWindow(QMainWindow):
         new_action.triggered.connect(self._new_grade_list)
         file_menu.addAction(new_action)
 
-        open_action = QAction("Open...", self)
-        open_action.setShortcut(QKeySequence.StandardKey.Open)
-        open_action.triggered.connect(self._load_grade_list)
-        file_menu.addAction(open_action)
+        file_menu.addSeparator()
 
-        save_action = QAction("Save", self)
-        save_action.setShortcut(QKeySequence.StandardKey.Save)
-        save_action.triggered.connect(self._save_grade_list)
-        file_menu.addAction(save_action)
+        open_teachers = QAction("Open Teachers...", self)
+        open_teachers.triggered.connect(self._load_teachers)
+        file_menu.addAction(open_teachers)
+
+        open_students = QAction("Open Students...", self)
+        open_students.triggered.connect(self._load_students)
+        file_menu.addAction(open_students)
+
+        open_classrooms = QAction("Open Classrooms...", self)
+        open_classrooms.triggered.connect(self._load_classrooms)
+        file_menu.addAction(open_classrooms)
+
+        file_menu.addSeparator()
+
+        save_teachers = QAction("Save Teachers...", self)
+        save_teachers.triggered.connect(self._save_teachers)
+        file_menu.addAction(save_teachers)
+
+        save_students = QAction("Save Students...", self)
+        save_students.triggered.connect(self._save_students)
+        file_menu.addAction(save_students)
+
+        save_classrooms = QAction("Save Classrooms...", self)
+        save_classrooms.triggered.connect(self._save_classrooms)
+        file_menu.addAction(save_classrooms)
 
         file_menu.addSeparator()
 
@@ -91,6 +125,78 @@ class MainWindow(QMainWindow):
         new_student_action.triggered.connect(self._new_student)
         edit_menu.addAction(new_student_action)
 
+        tools_menu = menu_bar.addMenu("Tools")
+
+        column_mapping_action = QAction("Column Mapping...", self)
+        column_mapping_action.triggered.connect(self._show_column_mapping)
+        tools_menu.addAction(column_mapping_action)
+
+    def _create_toolbar(self) -> None:
+        """Create the toolbar with grade selection dropdown."""
+        from PySide6.QtWidgets import QSizePolicy
+
+        toolbar_widget = QWidget()
+        toolbar_layout = QHBoxLayout(toolbar_widget)
+        toolbar_layout.setContentsMargins(4, 2, 4, 2)
+        toolbar_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        grade_label = QLabel("Grade:")
+        self._grade_combo = QComboBox()
+        self._grade_combo.setMaximumWidth(200)
+        self._grade_combo.currentTextChanged.connect(self._on_grade_selected)
+
+        toolbar_layout.addWidget(grade_label)
+        toolbar_layout.addWidget(self._grade_combo)
+        toolbar_layout.addStretch()
+
+        self.setCentralWidget(toolbar_widget)
+
+    def _on_grades_changed(self) -> None:
+        """Update the grade combo box when available grades change."""
+        if self._grade_combo is None:
+            return
+
+        current = self._grade_combo.currentText()
+        self._grade_combo.blockSignals(True)
+        self._grade_combo.clear()
+        self._grade_combo.addItem(_ALL_GRADES_LABEL)
+        for grade in self.model.available_grades:
+            self._grade_combo.addItem(grade)
+
+        if current == _ALL_GRADES_LABEL:
+            self._grade_combo.setCurrentText(_ALL_GRADES_LABEL)
+        elif current in self.model.available_grades:
+            self._grade_combo.setCurrentText(current)
+        elif self.model.active_grade is not None:
+            self._grade_combo.setCurrentText(self.model.active_grade)
+        else:
+            self._grade_combo.setCurrentText(_ALL_GRADES_LABEL)
+
+        self._grade_combo.blockSignals(False)
+        self._update_grade_combo_visibility()
+
+    def _update_grade_combo_visibility(self) -> None:
+        """Show or hide the grade combo based on whether grade data exists."""
+        if self._grade_combo is None:
+            return
+        self._grade_combo.setVisible(self.model.has_grade_data)
+
+    def _on_grade_selected(self, text: str) -> None:
+        """Handle grade selection from the combo box."""
+        if text == _ALL_GRADES_LABEL:
+            self.model.set_active_grade(None)
+        else:
+            self.model.set_active_grade(text)
+        self._update_window_title()
+
+    def _update_window_title(self) -> None:
+        """Update the window title to reflect the active grade."""
+        base = "Eagle Class Lists"
+        if self.model.active_grade is not None:
+            self.setWindowTitle(f"{base} - Grade {self.model.active_grade}")
+        else:
+            self.setWindowTitle(base)
+
     def _new_teacher(self) -> None:
         """Show the new teacher form dialog."""
         dialog = TeacherFormDialog(self.model)
@@ -101,8 +207,16 @@ class MainWindow(QMainWindow):
         dialog = StudentFormDialog(self.model)
         dialog.exec()
 
+    def _show_column_mapping(self) -> None:
+        """Show the column mapping settings dialog."""
+        dialog = ColumnMappingDialog(self.model.settings_store, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.model.set_active_preset(self.model.settings_store.active_preset)
+
     def _create_sidebar_and_views(self) -> None:
         """Create the sidebar navigation and stacked views."""
+        toolbar_widget = self.centralWidget()
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         sidebar = QListWidget()
@@ -119,17 +233,29 @@ class MainWindow(QMainWindow):
         splitter.addWidget(stack)
         splitter.setSizes([150, 500])
 
-        self.setCentralWidget(splitter)
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        main_layout.addWidget(toolbar_widget)
+        main_layout.addWidget(splitter)
+
+        super().setCentralWidget(main_widget)
 
     def _new_grade_list(self) -> None:
         """Create a new empty grade list."""
         self.model.set_grade_list(GradeList(teachers=[], students=[]))
+        self._update_window_title()
 
-    def _load_grade_list(self) -> None:
-        """Load a grade list from an Excel file."""
+    # ------------------------------------------------------------------
+    # Per-entity load handlers
+    # ------------------------------------------------------------------
+
+    def _load_teachers(self) -> None:
+        """Load teachers from an Excel file."""
         filepath, _ = QFileDialog.getOpenFileName(
             self,
-            "Open Grade List",
+            "Open Teachers",
             "",
             "Excel Files (*.xlsx *.xls)",
         )
@@ -137,18 +263,74 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            grade_list = GradeList.from_excel(Path(filepath))
-            self.model.set_grade_list(grade_list)
+            self.model.load_teachers(Path(filepath))
+            self._update_window_title()
         except ExcelImportError as e:
             QMessageBox.critical(self, "Open Failed", f"{e.message}\n\n{e.details or ''}")
         except Exception as e:
             QMessageBox.critical(self, "Open Failed", f"Unexpected error: {e}")
 
-    def _save_grade_list(self) -> None:
-        """Save the current grade list to an Excel file."""
+    def _load_students(self) -> None:
+        """Load students from an Excel file."""
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Students",
+            "",
+            "Excel Files (*.xlsx *.xls)",
+        )
+        if not filepath:
+            return
+
+        try:
+            self.model.load_students(Path(filepath))
+            self._update_window_title()
+        except ExcelImportError as e:
+            QMessageBox.critical(self, "Open Failed", f"{e.message}\n\n{e.details or ''}")
+        except Exception as e:
+            QMessageBox.critical(self, "Open Failed", f"Unexpected error: {e}")
+
+    def _load_classrooms(self) -> None:
+        """Load classroom assignments from an Excel file."""
+        if not self.model.teachers_loaded:
+            QMessageBox.warning(
+                self,
+                "Teachers Required",
+                "Please load teachers (File > Open Teachers...) before loading classrooms.",
+            )
+            return
+        if not self.model.students_loaded:
+            QMessageBox.warning(
+                self,
+                "Students Required",
+                "Please load students (File > Open Students...) before loading classrooms.",
+            )
+            return
+
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Classrooms",
+            "",
+            "Excel Files (*.xlsx *.xls)",
+        )
+        if not filepath:
+            return
+
+        try:
+            self.model.load_classrooms(Path(filepath))
+        except ExcelImportError as e:
+            QMessageBox.critical(self, "Open Failed", f"{e.message}\n\n{e.details or ''}")
+        except Exception as e:
+            QMessageBox.critical(self, "Open Failed", f"Unexpected error: {e}")
+
+    # ------------------------------------------------------------------
+    # Per-entity save handlers
+    # ------------------------------------------------------------------
+
+    def _save_teachers(self) -> None:
+        """Save teachers to an Excel file."""
         filepath, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Grade List",
+            "Save Teachers",
             "",
             "Excel Files (*.xlsx)",
         )
@@ -156,6 +338,38 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self.model.grade_list.save_to_excel(Path(filepath))
+            self.model.save_teachers(Path(filepath))
+        except Exception as e:
+            QMessageBox.critical(self, "Save Failed", f"Failed to save: {e}")
+
+    def _save_students(self) -> None:
+        """Save students to an Excel file."""
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Students",
+            "",
+            "Excel Files (*.xlsx)",
+        )
+        if not filepath:
+            return
+
+        try:
+            self.model.save_students(Path(filepath))
+        except Exception as e:
+            QMessageBox.critical(self, "Save Failed", f"Failed to save: {e}")
+
+    def _save_classrooms(self) -> None:
+        """Save classroom assignments to an Excel file."""
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Classrooms",
+            "",
+            "Excel Files (*.xlsx)",
+        )
+        if not filepath:
+            return
+
+        try:
+            self.model.save_classrooms(Path(filepath))
         except Exception as e:
             QMessageBox.critical(self, "Save Failed", f"Failed to save: {e}")

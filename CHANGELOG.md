@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Unreleased
 ----------------------------------------------------------------------
 
+### Added
+- **Column mapping presets** - Users can now create, save, and switch between
+  named column mapping presets to support different Excel formats
+  - New `settings` module with `ColumnMappingPreset` and `ColumnMappingStore`
+  - Presets map internal attribute names to Excel column headers for teachers,
+    students, and classrooms, plus sheet names
+  - Built-in "Default" preset (immutable) matches the original format
+  - Custom presets persist to `~/.config/eagleclasslists/column_mappings.json`
+  - New "Column Mapping..." menu item in Edit menu opens the settings dialog
+  - Settings dialog with Teachers/Students/Classrooms tabs for column mapping
+  - Validation ensures required fields are mapped before saving
+  - `GradeListModel` now tracks the active preset and passes it to I/O methods
+  - `GradeList.load_*_from_excel` and `save_*_to_excel` now accept an optional
+    `preset` parameter (defaults to `DEFAULT_PRESET`)
+  - `rename_records_for_reading` and `rename_records_for_writing` utility
+    functions for column name translation
+
 ### Removed
 - **Streamlit App** - The streamlit app is removed in favor of the PySide6 app
 

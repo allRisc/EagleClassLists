@@ -34,8 +34,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
     "Topic :: System :: Archiving :: Packaging",
@@ -43,7 +41,7 @@ classifiers = [
 ]
 keywords = ["rtl", "hdl", "packaging", "Verilog", "UVM", "SystemVerilog"]
 
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 
 dependencies = [
     "openpyxl>=3.1.0",
@@ -96,12 +94,12 @@ pretty = true
 
 plugins = ['pydantic.mypy']
 
-python_version = "3.12"
+python_version = "3.14"
 
 files = ["src"]
 
 [tool.pyright]
-pythonVersion = "3.12"
+pythonVersion = "3.14"
 include = ["src"]
 typeCheckingMode = "basic"
 
@@ -109,7 +107,7 @@ typeCheckingMode = "basic"
 line-length = 100
 indent-width = 4
 
-target-version = "py312"
+target-version = "py314"
 show-fixes = true
 
 src = ["src"]
@@ -137,7 +135,7 @@ preview = true
 
 [tool.tox]
 env_list = [
-    "py312", "py313", "py314",
+    "py314",
     "style",
     "typing",
     "docs_dirhtml",

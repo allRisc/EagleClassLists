@@ -43,7 +43,7 @@ from PySide6.QtWidgets import (
 )
 
 from eagleclasslists.app.grade_list_model import GradeListModel
-from eagleclasslists.classlist import GradeList, Student, Teacher
+from eagleclasslists.data.classlist import GradeList, Student, Teacher
 from eagleclasslists.fitness import FitnessWeights, calculate_fitness
 from eagleclasslists.greedy_assignment import greedy_assign_students
 from eagleclasslists.simulated_annealing import AnnealingConfig, optimize_grade_list
@@ -447,7 +447,7 @@ class UnassignedStudentsPanel(QWidget):
     def __init__(self, model: GradeListModel) -> None:
         super().__init__()
         self.model = model
-        self.target_combo: QComboBox | None = None
+        self.target_combo: QComboBox
         self._rows: list[UnassignedStudentRow] = []
         self._setup_ui()
         model.changed.connect(self._refresh)
@@ -485,15 +485,11 @@ class UnassignedStudentsPanel(QWidget):
         layout.addWidget(scroll_area, stretch=1)
 
     def _populate_teacher_combo(self) -> None:
-        if self.target_combo is None:
-            return
         self.target_combo.clear()
         for teacher in self.model.grade_list.teachers:
             self.target_combo.addItem(teacher.name)
 
     def _on_assign_selected(self) -> None:
-        if self.target_combo is None:
-            return
         teacher = self.target_combo.currentText()
         if not teacher:
             QMessageBox.warning(self, "Warning", "No teacher selected.")
@@ -1024,7 +1020,11 @@ class ClassroomsView(QWidget):
 
         grade_list = self.model.grade_list
         if not grade_list.teachers:
-            label = QLabel("No teachers added yet.")
+            if self.model.classrooms_loaded:
+                msg = "No classrooms in the loaded file."
+            else:
+                msg = "No classrooms loaded. Use File > Open Classrooms to load."
+            label = QLabel(msg)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setStyleSheet("font-size: 14px; color: #888; padding: 20px;")
             self.teacher_layout.addWidget(label)

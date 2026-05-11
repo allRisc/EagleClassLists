@@ -15,14 +15,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ####################################################################################################
-
-from __future__ import annotations
-
-from eagleclasslists.data import classlist
+"""Error classes for data operations."""
 
 
-def test_import() -> None:
-    assert isinstance(classlist.GradeList, type)
-    assert isinstance(classlist.Classroom, type)
-    assert isinstance(classlist.Teacher, type)
-    assert isinstance(classlist.Student, type)
+class ExcelImportError(Exception):
+    """Custom exception for Excel import errors with user-friendly messages."""
+
+    def __init__(self, message: str, details: str | None = None) -> None:
+        """Initialize the error with a message and optional details.
+
+        Args:
+            message: User-friendly error message.
+            details: Additional technical details or suggestions.
+        """
+        self.message = message
+        self.details = details
+        super().__init__(message)
