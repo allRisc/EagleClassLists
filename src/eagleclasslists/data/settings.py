@@ -206,8 +206,8 @@ ESTES_PRESET = ColumnMappingPreset(
     },
     split_cluster_columns={
         "AC": "On the IEP, qualifies for... [Adaptive Cluster?]",
-        "GEM": "Qualifies for GEM?",
-        "EL": "Qualifies for EL?",
+        "GEM": "GEM?",
+        "EL": "EL?",
     },
 )
 """Estes Format preset with custom column headers for Estes Elementary."""
