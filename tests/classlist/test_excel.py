@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from eagleclasslists.data.classlist import (
@@ -37,8 +38,9 @@ from eagleclasslists.data.importer import (
     save_classrooms_to_excel,
     save_students_to_excel,
     save_teachers_to_excel,
+    update_student_file_with_teachers,
 )
-from eagleclasslists.data.settings import ColumnMappingPreset
+from eagleclasslists.data.settings import ColumnMappingPreset, DEFAULT_PRESET
 from eagleclasslists.data.types import (
     Academic,
     Behavior,
@@ -611,6 +613,17 @@ ESTES_PRESET = ColumnMappingPreset(
 )
 
 
+def _create_test_student_excel(
+    students_data: list[dict],
+    filepath: Path,
+    sheet_name: str = "Students",
+) -> None:
+    """Write a list of row-dicts directly to Excel for test setup."""
+    import pandas as pd
+    df = pd.DataFrame(students_data)
+    df.to_excel(filepath, sheet_name=sheet_name, index=False)
+
+
 class TestCustomPresetTeachers:
     """Test teachers roundtrip with a custom column mapping preset."""
 
@@ -1061,3 +1074,177 @@ class TestSplitClusterColumns:
         assert len(loaded) == 1
         assert loaded[0].first_name == "Alice"
         assert loaded[0].cluster == Cluster.GEM
+
+
+class TestUpdateStudentFileWithTeachers:
+    """Tests for update_student_file_with_teachers() importer function."""
+
+    @pytest.fixture
+    def students(self) -> list[Student]:
+        """Three students with teacher assignments."""
+        return [
+            Student(first_name="Alice", last_name="Smith", gender=Gender.FEMALE,
+                    math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM,
+                    teacher="Ms. Johnson"),
+            Student(first_name="Bob", last_name="Jones", gender=Gender.MALE,
+                    math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM,
+                    teacher="Mr. Davis"),
+            Student(first_name="Carol", last_name="White", gender=Gender.FEMALE,
+                    math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM,
+                    teacher="Ms. Johnson"),
+        ]
+
+    def test_all_students_matched(self, students, tmp_path):
+        """All students in input file are matched and get teacher names."""
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith"},
+             {"First Name": "Bob", "Last Name": "Jones"},
+             {"First Name": "Carol", "Last Name": "White"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(input_file, output_file, students, DEFAULT_PRESET)
+        df = pd.read_excel(output_file)
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        assert df.loc[0, teacher_col] == "Ms. Johnson"
+        assert df.loc[1, teacher_col] == "Mr. Davis"
+        assert df.loc[2, teacher_col] == "Ms. Johnson"
+
+    def test_partial_match(self, students, tmp_path):
+        """Only matched students get teachers; unmatched rows have blank teacher."""
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith"},
+             {"First Name": "Unknown", "Last Name": "Person"},
+             {"First Name": "Bob", "Last Name": "Jones"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(input_file, output_file, students, DEFAULT_PRESET)
+        df = pd.read_excel(output_file)
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        assert df.loc[0, teacher_col] == "Ms. Johnson"
+        assert pd.isna(df.loc[1, teacher_col]) or str(df.loc[1, teacher_col]).strip() in ("", "nan", "NaN")
+        assert df.loc[2, teacher_col] == "Mr. Davis"
+
+    def test_teacher_column_absent_in_input(self, students, tmp_path):
+        """Teacher column is added when absent from input file."""
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        # Input has no teacher column
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith"},
+             {"First Name": "Bob", "Last Name": "Jones"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(input_file, output_file, students, DEFAULT_PRESET)
+        df = pd.read_excel(output_file)
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        assert teacher_col in df.columns
+        assert df.loc[0, teacher_col] == "Ms. Johnson"
+
+    def test_teacher_column_overwritten(self, students, tmp_path):
+        """Existing teacher values in input are overwritten with current assignments."""
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith", teacher_col: "Old Teacher"},
+             {"First Name": "Bob", "Last Name": "Jones", teacher_col: "Wrong Teacher"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(input_file, output_file, students, DEFAULT_PRESET)
+        df = pd.read_excel(output_file)
+        assert df.loc[0, teacher_col] == "Ms. Johnson"
+        assert df.loc[1, teacher_col] == "Mr. Davis"
+
+    def test_case_insensitive_matching(self, students, tmp_path):
+        """Students are matched despite different capitalization in the input file."""
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"First Name": "ALICE", "Last Name": "SMITH"},
+             {"First Name": "bob", "Last Name": "jones"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(input_file, output_file, students, DEFAULT_PRESET)
+        df = pd.read_excel(output_file)
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        assert df.loc[0, teacher_col] == "Ms. Johnson"
+        assert df.loc[1, teacher_col] == "Mr. Davis"
+
+    def test_empty_student_list(self, tmp_path):
+        """With empty student list all teacher values in output are blank."""
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith"},
+             {"First Name": "Bob", "Last Name": "Jones"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(input_file, output_file, [], DEFAULT_PRESET)
+        df = pd.read_excel(output_file)
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        assert teacher_col in df.columns
+        # All values should be blank/empty
+        for val in df[teacher_col]:
+            assert pd.isna(val) or str(val).strip() in ("", "nan", "NaN")
+
+    def test_estes_preset(self, tmp_path):
+        """Column mapping works correctly for the ESTES_PRESET."""
+        students = [
+            Student(first_name="Alice", last_name="Smith", gender=Gender.FEMALE,
+                    math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM,
+                    teacher="Ms. Johnson"),
+        ]
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"FName": "Alice", "LName": "Smith"}],
+            input_file,
+            sheet_name=ESTES_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(input_file, output_file, students, ESTES_PRESET)
+        df = pd.read_excel(output_file)
+        teacher_col = ESTES_PRESET.student_columns["teacher"]
+        assert df.loc[0, teacher_col] == "Ms. Johnson"
+
+    def test_file_not_found(self, students, tmp_path):
+        """Raises ExcelImportError when input file does not exist."""
+        missing = tmp_path / "nonexistent.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        with pytest.raises(ExcelImportError) as exc_info:
+            update_student_file_with_teachers(missing, output_file, students, DEFAULT_PRESET)
+        assert "not found" in str(exc_info.value).lower()
+
+    def test_invalid_excel_format(self, students, tmp_path):
+        """Raises ExcelImportError when input file is not a valid Excel file."""
+        bad_file = tmp_path / "bad.xlsx"
+        bad_file.write_text("this is not excel content")
+        output_file = tmp_path / "output.xlsx"
+        with pytest.raises(ExcelImportError):
+            update_student_file_with_teachers(bad_file, output_file, students, DEFAULT_PRESET)
+
+    def test_other_columns_unchanged(self, students, tmp_path):
+        """Non-teacher columns in the input file are preserved unchanged in output."""
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith", "Notes": "some note", "ID": 42},
+             {"First Name": "Bob", "Last Name": "Jones", "Notes": "other note", "ID": 99}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(input_file, output_file, students, DEFAULT_PRESET)
+        df = pd.read_excel(output_file)
+        assert df.loc[0, "Notes"] == "some note"
+        assert df.loc[1, "Notes"] == "other note"
+        assert df.loc[0, "ID"] == 42
+        assert df.loc[1, "ID"] == 99
