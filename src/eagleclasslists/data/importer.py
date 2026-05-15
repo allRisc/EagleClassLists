@@ -291,7 +291,7 @@ def update_student_file_with_teachers(
                 )
 
                 if first_name_val is not None and last_name_val is not None:
-                    key = (str(first_name_val).lower(), str(last_name_val).lower())
+                    key = (str(first_name_val).strip().lower(), str(last_name_val).strip().lower())
                     teacher_name = teacher_lookup.get(key, "")
                     ws.cell(row=row, column=teacher_col).value = teacher_name
                 else:
