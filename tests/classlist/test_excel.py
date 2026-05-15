@@ -1250,3 +1250,130 @@ class TestUpdateStudentFileWithTeachers:
         assert df.loc[1, "Notes"] == "other note"
         assert df.loc[0, "ID"] == 42
         assert df.loc[1, "ID"] == 99
+
+    def test_classrooms_override_student_teacher(self, tmp_path):
+        """Classroom assignments take priority over Student.teacher field."""
+        students = [
+            Student(first_name="Alice", last_name="Smith", gender=Gender.FEMALE,
+                    math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM,
+                    teacher="Old Teacher"),
+            Student(first_name="Bob", last_name="Jones", gender=Gender.MALE,
+                    math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM,
+                    teacher="Old Teacher"),
+        ]
+        teacher = Teacher(name="Ms. Classroom")
+        classrooms = [Classroom(teacher=teacher, students=[students[0], students[1]])]
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith"},
+             {"First Name": "Bob", "Last Name": "Jones"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(
+            input_file, output_file, students, DEFAULT_PRESET, classrooms=classrooms,
+        )
+        df = pd.read_excel(output_file)
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        assert df.loc[0, teacher_col] == "Ms. Classroom"
+        assert df.loc[1, teacher_col] == "Ms. Classroom"
+
+    def test_classrooms_with_unassigned_fallback(self, tmp_path):
+        """Students not in any classroom fall back to Student.teacher."""
+        alice = Student(first_name="Alice", last_name="Smith", gender=Gender.FEMALE,
+                        math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM,
+                        teacher="Fallback Teacher")
+        bob = Student(first_name="Bob", last_name="Jones", gender=Gender.MALE,
+                      math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM)
+        teacher = Teacher(name="Ms. Classroom")
+        classrooms = [Classroom(teacher=teacher, students=[bob])]
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith"},
+             {"First Name": "Bob", "Last Name": "Jones"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(
+            input_file, output_file, [alice, bob], DEFAULT_PRESET, classrooms=classrooms,
+        )
+        df = pd.read_excel(output_file)
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        assert df.loc[0, teacher_col] == "Fallback Teacher"
+        assert df.loc[1, teacher_col] == "Ms. Classroom"
+
+    def test_classrooms_no_student_teacher_set(self, tmp_path):
+        """Students with no Student.teacher still get teacher from classroom."""
+        alice = Student(first_name="Alice", last_name="Smith", gender=Gender.FEMALE,
+                        math=Academic.MEDIUM, ela=Academic.MEDIUM, behavior=Behavior.MEDIUM)
+        teacher = Teacher(name="Ms. Classroom")
+        classrooms = [Classroom(teacher=teacher, students=[alice])]
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+        _create_test_student_excel(
+            [{"First Name": "Alice", "Last Name": "Smith"}],
+            input_file,
+            sheet_name=DEFAULT_PRESET.students_sheet,
+        )
+        update_student_file_with_teachers(
+            input_file, output_file, [alice], DEFAULT_PRESET, classrooms=classrooms,
+        )
+        df = pd.read_excel(output_file)
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        assert df.loc[0, teacher_col] == "Ms. Classroom"
+
+    def test_formatting_preserved(self, students, tmp_path):
+        """Cell formatting (font, fill, column width) is preserved in the output."""
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill
+
+        input_file = tmp_path / "input.xlsx"
+        output_file = tmp_path / "output.xlsx"
+
+        # Create an input workbook with explicit formatting
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = DEFAULT_PRESET.students_sheet
+
+        headers = ["First Name", "Last Name", "Teacher"]
+        for col_idx, header in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = Font(bold=True, color="FF0000")
+            cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+        ws.cell(row=2, column=1, value="Alice")
+        ws.cell(row=2, column=2, value="Smith")
+        ws.cell(row=2, column=3, value="Old Teacher")
+        # Apply formatting to a data cell
+        name_cell = ws.cell(row=2, column=1)
+        name_cell.font = Font(italic=True, size=14)
+
+        ws.column_dimensions["A"].width = 25.0
+
+        wb.save(input_file)
+
+        update_student_file_with_teachers(input_file, output_file, students, DEFAULT_PRESET)
+
+        wb_out = openpyxl.load_workbook(output_file)
+        ws_out = wb_out[DEFAULT_PRESET.students_sheet]
+
+        # Header formatting preserved
+        header_cell = ws_out.cell(row=1, column=1)
+        assert header_cell.font.bold is True
+        assert header_cell.font.color.rgb == "00FF0000"
+        assert header_cell.fill.start_color.rgb == "00FFFF00"
+
+        # Data cell formatting preserved
+        name_cell_out = ws_out.cell(row=2, column=1)
+        assert name_cell_out.font.italic is True
+        assert name_cell_out.font.size == 14
+
+        # Column width preserved
+        assert ws_out.column_dimensions["A"].width == 25.0
+
+        # Teacher value was still updated
+        teacher_col = DEFAULT_PRESET.student_columns["teacher"]
+        teacher_col_idx = headers.index(teacher_col) + 1
+        assert ws_out.cell(row=2, column=teacher_col_idx).value == "Ms. Johnson"

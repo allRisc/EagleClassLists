@@ -299,6 +299,7 @@ class GradeListModel(QObject):
             output_filepath,
             self._grade_list.students,
             self._active_preset,
+            classrooms=self._grade_list.classes,
         )
 
     def remove_student(self, first_name: str, last_name: str) -> None:
