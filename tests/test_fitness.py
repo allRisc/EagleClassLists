@@ -541,8 +541,8 @@ class TestResourceAndSpeechBalance:
 
     def test_imbalanced_speech(self) -> None:
         """Test imbalanced speech services distribution."""
-        teacher1 = Teacher(name="Ms. Smith", clusters=[])
-        teacher2 = Teacher(name="Mr. Jones", clusters=[])
+        teacher1 = Teacher(name="Ms. Smith", clusters=[], speech=True)
+        teacher2 = Teacher(name="Mr. Jones", clusters=[], speech=True)
 
         # All speech students in one classroom
         students1 = [
@@ -581,6 +581,93 @@ class TestResourceAndSpeechBalance:
 
         breakdown = get_fitness_breakdown(grade_list)
         assert breakdown["speech"] < 0.5
+
+    def test_speech_balance_no_speech_teachers(self) -> None:
+        """Test speech balance when no teachers are speech-qualified."""
+        teacher1 = Teacher(name="Ms. Smith", clusters=[])
+        teacher2 = Teacher(name="Mr. Jones", clusters=[])
+
+        # Mix of speech and non-speech students
+        students1 = [
+            Student(
+                first_name=f"Student{i}",
+                last_name="Smith",
+                gender=Gender.MALE,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
+                behavior=Behavior.HIGH,
+                speech=(i < 3),  # First 3 have speech
+            )
+            for i in range(8)
+        ]
+        students2 = [
+            Student(
+                first_name=f"Student{i}",
+                last_name="Jones",
+                gender=Gender.MALE,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
+                behavior=Behavior.HIGH,
+                speech=(i < 2),  # First 2 have speech
+            )
+            for i in range(7)
+        ]
+
+        classroom1 = Classroom(teacher=teacher1, students=students1)
+        classroom2 = Classroom(teacher=teacher2, students=students2)
+
+        grade_list = GradeList(
+            classes=[classroom1, classroom2],
+            teachers=[teacher1, teacher2],
+            students=students1 + students2,
+        )
+
+        breakdown = get_fitness_breakdown(grade_list)
+        assert breakdown["speech"] == 1.0
+
+    def test_speech_balance_excludes_non_speech_classroom(self) -> None:
+        """Test that non-speech-qualified classrooms are excluded from speech scoring."""
+        teacher1 = Teacher(name="Ms. Smith", clusters=[], speech=True)
+        teacher2 = Teacher(name="Mr. Jones", clusters=[])
+
+        # All speech students in classroom1 (speech-qualified)
+        # classroom2 has only non-speech students
+        students1 = [
+            Student(
+                first_name=f"Student{i}",
+                last_name="Smith",
+                gender=Gender.MALE,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
+                behavior=Behavior.HIGH,
+                speech=True,
+            )
+            for i in range(5)
+        ]
+        students2 = [
+            Student(
+                first_name=f"Student{i}",
+                last_name="Jones",
+                gender=Gender.MALE,
+                math=Academic.HIGH,
+                ela=Academic.HIGH,
+                behavior=Behavior.HIGH,
+                speech=False,
+            )
+            for i in range(8)
+        ]
+
+        classroom1 = Classroom(teacher=teacher1, students=students1)
+        classroom2 = Classroom(teacher=teacher2, students=students2)
+
+        grade_list = GradeList(
+            classes=[classroom1, classroom2],
+            teachers=[teacher1, teacher2],
+            students=students1 + students2,
+        )
+
+        breakdown = get_fitness_breakdown(grade_list)
+        assert breakdown["speech"] == 1.0
 
 
 class TestOverallFitness:

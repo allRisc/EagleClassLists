@@ -312,7 +312,15 @@ def _calculate_speech_balance(grade_list: GradeList) -> float:
     Returns:
         A score between 0 and 1, where 1 means perfect balance.
     """
-    return _calculate_boolean_balance(grade_list, lambda s: s.speech)
+    speech_classrooms = [c for c in grade_list.classes if c.teacher.speech]
+    if not speech_classrooms:
+        return 1.0
+    filtered = GradeList(
+        teachers=grade_list.teachers,
+        students=grade_list.students,
+        classes=speech_classrooms,
+    )
+    return _calculate_boolean_balance(filtered, lambda s: s.speech)
 
 
 def _calculate_class_size_balance(grade_list: GradeList) -> float:
