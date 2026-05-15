@@ -977,3 +977,167 @@ class TestExclusionConstraints:
         class_student_names = {f"{s.first_name} {s.last_name}" for s in alice_classroom.students}
         assert "Bob Brown" not in class_student_names
         assert "Charlie Clark" not in class_student_names
+
+
+class TestSpeechConstraint:
+    """Test suite for speech constraint handling."""
+
+    def test_speech_student_assigned_to_speech_qualified_teacher(self) -> None:
+        """Test that speech students go to qualified teachers."""
+        teacher1 = Teacher(name="Teacher A", clusters=[], speech=True)
+        teacher2 = Teacher(name="Teacher B", clusters=[], speech=False)
+
+        speech_student = Student(
+            first_name="Speech",
+            last_name="Student",
+            gender=Gender.MALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            speech=True,
+        )
+
+        grade_list = GradeList(
+            teachers=[teacher1, teacher2],
+            students=[speech_student],
+            classes=[
+                Classroom(teacher=teacher1, students=[]),
+                Classroom(teacher=teacher2, students=[]),
+            ],
+        )
+
+        result = greedy_assign_students(grade_list, students=[speech_student])
+
+        # Speech student must be with Teacher A (qualified for speech)
+        assert len(result.classes[0].students) == 1
+        assert len(result.classes[1].students) == 0
+
+    def test_impossible_constraints_no_speech_teacher(self) -> None:
+        """Test that ImpossibleConstraintsError is raised when no speech teacher exists."""
+        teacher1 = Teacher(name="Teacher A", clusters=[], speech=False)
+
+        speech_student = Student(
+            first_name="Speech",
+            last_name="Student",
+            gender=Gender.MALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            speech=True,
+        )
+
+        grade_list = GradeList(
+            teachers=[teacher1],
+            students=[speech_student],
+            classes=[Classroom(teacher=teacher1, students=[])],
+        )
+
+        # Should raise ImpossibleConstraintsError because speech student
+        # has no speech-qualified teacher to go to
+        with pytest.raises(ImpossibleConstraintsError):
+            greedy_assign_students(grade_list, students=[speech_student])
+
+    def test_multiple_speech_students_all_placed_in_speech_classrooms(self) -> None:
+        """Test that multiple speech students are all placed in speech classrooms."""
+        teacher1 = Teacher(name="Teacher A", clusters=[], speech=True)
+        teacher2 = Teacher(name="Teacher B", clusters=[], speech=False)
+
+        speech_student1 = Student(
+            first_name="Speech1",
+            last_name="Student",
+            gender=Gender.MALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            speech=True,
+        )
+        speech_student2 = Student(
+            first_name="Speech2",
+            last_name="Student",
+            gender=Gender.FEMALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            speech=True,
+        )
+
+        grade_list = GradeList(
+            teachers=[teacher1, teacher2],
+            students=[speech_student1, speech_student2],
+            classes=[
+                Classroom(teacher=teacher1, students=[]),
+                Classroom(teacher=teacher2, students=[]),
+            ],
+        )
+
+        result = greedy_assign_students(grade_list, students=[speech_student1, speech_student2])
+
+        # Both speech students must be with Teacher A (qualified for speech)
+        assert len(result.classes[0].students) == 2
+        assert len(result.classes[1].students) == 0
+
+    def test_non_speech_student_can_be_placed_in_speech_classroom(self) -> None:
+        """Test that non-speech students can be placed in speech classrooms."""
+        teacher1 = Teacher(name="Teacher A", clusters=[], speech=True)
+        teacher2 = Teacher(name="Teacher B", clusters=[], speech=False)
+
+        non_speech_student = Student(
+            first_name="Regular",
+            last_name="Student",
+            gender=Gender.MALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            speech=False,
+        )
+
+        grade_list = GradeList(
+            teachers=[teacher1, teacher2],
+            students=[non_speech_student],
+            classes=[
+                Classroom(teacher=teacher1, students=[]),
+                Classroom(teacher=teacher2, students=[]),
+            ],
+        )
+
+        result = greedy_assign_students(grade_list, students=[non_speech_student])
+
+        # Non-speech student should be placed (can go anywhere)
+        total_students = sum(len(c.students) for c in result.classes)
+        assert total_students == 1
+
+    def test_teacher_with_speech_and_cluster_accepts_both(self) -> None:
+        """Test that teacher with speech and cluster qualifications accepts both."""
+        teacher1 = Teacher(name="Teacher A", clusters=[Cluster.GEM], speech=True)
+
+        speech_student = Student(
+            first_name="Speech",
+            last_name="Student",
+            gender=Gender.MALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            speech=True,
+            cluster=None,
+        )
+        gem_student = Student(
+            first_name="GEM",
+            last_name="Student",
+            gender=Gender.FEMALE,
+            math=Academic.HIGH,
+            ela=Academic.HIGH,
+            behavior=Behavior.HIGH,
+            cluster=Cluster.GEM,
+            speech=False,
+        )
+
+        grade_list = GradeList(
+            teachers=[teacher1],
+            students=[speech_student, gem_student],
+            classes=[Classroom(teacher=teacher1, students=[])],
+        )
+
+        result = greedy_assign_students(grade_list, students=[speech_student, gem_student])
+
+        # Both students should be in Teacher A's classroom
+        assert len(result.classes[0].students) == 2

@@ -134,6 +134,13 @@ def greedy_assign_students(
                     student_name=student_name,
                     excluded_names=all_conflicts,
                 )
+            elif student.speech and not any(c.teacher.speech for c in result.classes):
+                raise ImpossibleConstraintsError(
+                    f"Cannot satisfy constraints for student '{student_name}'. "
+                    f"No speech-qualified teacher is available.",
+                    student_name=student_name,
+                    excluded_names=[],
+                )
             # For other constraint failures (teacher/cluster), skip gracefully
             continue
 
@@ -184,8 +191,8 @@ def _sort_by_constraints(students: list[Student]) -> list[Student]:
             return 0  # Highest priority: has teacher request
         if student.exclusions:
             return 1  # High priority: has exclusions
-        if student.cluster is not None:
-            return 2  # Medium priority: has cluster assignment
+        if student.cluster is not None or student.speech:
+            return 2  # Medium priority: cluster or speech constraint
         return 3  # Lowest priority: no constraints
 
     return sorted(students, key=constraint_key)
@@ -262,6 +269,10 @@ def _is_valid_assignment(classroom: Classroom, student: Student) -> bool:
 
     # Check cluster constraint
     if student.cluster is not None and student.cluster not in teacher_clusters:
+        return False
+
+    # Check speech constraint
+    if student.speech and not classroom.teacher.speech:
         return False
 
     # Check exclusion constraints (bidirectional)
