@@ -195,6 +195,7 @@ ESTES_PRESET = ColumnMappingPreset(
         "name": "Teacher Name",
         "grade": "Grade",
         "clusters": "Clusters",
+        "speech": "Speech",
     },
     classrooms_sheet="Classroom Data",
     classroom_columns={

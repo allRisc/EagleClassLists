@@ -137,6 +137,9 @@ class Teacher(pydantic.BaseModel):
     clusters: CSVList[Cluster] = pydantic.Field(alias="Clusters", default_factory=list)
     """List of Cluster types this teacher is qualified to teach."""
 
+    speech: BoolField = pydantic.Field(alias="Speech", default=False)
+    """Whether the teacher specializes in speech services."""
+
     @pydantic.field_validator("grade", mode="before")
     @classmethod
     def convert_grade_to_str(cls, val: Any) -> Any:

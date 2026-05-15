@@ -69,6 +69,7 @@ class TestColumnMappingPreset:
             "name": "Name",
             "grade": "Grade",
             "clusters": "Clusters",
+            "speech": "Speech",
         }
 
     def test_default_preset_student_columns(self) -> None:
@@ -128,7 +129,12 @@ class TestColumnMappingPreset:
 
     def test_reverse_teacher_columns(self) -> None:
         reverse = DEFAULT_PRESET.reverse_teacher_columns()
-        assert reverse == {"Name": "name", "Grade": "grade", "Clusters": "clusters"}
+        assert reverse == {
+            "Name": "name",
+            "Grade": "grade",
+            "Clusters": "clusters",
+            "Speech": "speech",
+        }
 
     def test_reverse_student_columns(self) -> None:
         reverse = DEFAULT_PRESET.reverse_student_columns()
