@@ -80,9 +80,12 @@ class TeacherFormDialog(QDialog):
             self.cluster_checks[cluster] = check
             cluster_layout.addWidget(check)
 
+        self.speech_check = QCheckBox("Speech Qualified")
+
         info_layout.addRow("Name:", self.name_edit)
         info_layout.addRow("Grade:", self.grade_combo)
         info_layout.addRow("Cluster Qualifications:", cluster_layout)
+        info_layout.addRow("Speech:", self.speech_check)
         info_group.setLayout(info_layout)
         layout.addWidget(info_group)
 
@@ -109,6 +112,7 @@ class TeacherFormDialog(QDialog):
         for cluster in teacher.clusters:
             if cluster in self.cluster_checks:
                 self.cluster_checks[cluster].setChecked(True)
+        self.speech_check.setChecked(bool(teacher.speech))
 
     def _on_save(self) -> None:
         name = self.name_edit.text().strip()
@@ -135,7 +139,9 @@ class TeacherFormDialog(QDialog):
         grade_value = self.grade_combo.currentText().strip()
         grade = grade_value if grade_value else None
 
-        teacher = Teacher(name=name, grade=grade, clusters=clusters)
+        teacher = Teacher(
+            name=name, grade=grade, clusters=clusters, speech=self.speech_check.isChecked()
+        )
 
         if self.editing_teacher:
             self.model.update_teacher(self.editing_teacher.name, teacher)
@@ -175,6 +181,11 @@ class TeacherRow(QFrame):
             no_cluster_label = QLabel("No cluster qualifications")
             no_cluster_label.setStyleSheet("font-size: 12px; color: #888;")
             left_layout.addWidget(no_cluster_label)
+
+        if self.teacher.speech:
+            speech_label = QLabel("Speech")
+            speech_label.setStyleSheet("font-size: 12px; color: #555;")
+            left_layout.addWidget(speech_label)
 
         layout.addLayout(left_layout, stretch=1)
 
