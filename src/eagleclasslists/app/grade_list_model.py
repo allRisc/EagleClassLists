@@ -37,6 +37,8 @@ from eagleclasslists.data.importer import (
     save_classrooms_to_excel,
     save_students_to_excel,
     save_teachers_to_excel,
+)
+from eagleclasslists.data.importer import (
     update_student_file_with_teachers as _update_student_file_with_teachers,
 )
 from eagleclasslists.data.settings import (

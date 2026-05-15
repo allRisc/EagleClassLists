@@ -246,8 +246,16 @@ def update_student_file_with_teachers(
         # For each row, look up student by case-insensitive name and fill teacher column
         if teacher_header is not None:
             for idx in df.index:
-                first_name_val = df.at[idx, first_name_header] if first_name_header in df.columns else None
-                last_name_val = df.at[idx, last_name_header] if last_name_header in df.columns else None
+                first_name_val = (
+                    df.at[idx, first_name_header]
+                    if first_name_header in df.columns
+                    else None
+                )
+                last_name_val = (
+                    df.at[idx, last_name_header]
+                    if last_name_header in df.columns
+                    else None
+                )
 
                 if first_name_val is not None and last_name_val is not None:
                     key = (str(first_name_val).lower(), str(last_name_val).lower())

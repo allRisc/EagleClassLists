@@ -40,7 +40,7 @@ from eagleclasslists.data.importer import (
     save_teachers_to_excel,
     update_student_file_with_teachers,
 )
-from eagleclasslists.data.settings import ColumnMappingPreset, DEFAULT_PRESET
+from eagleclasslists.data.settings import DEFAULT_PRESET, ColumnMappingPreset
 from eagleclasslists.data.types import (
     Academic,
     Behavior,
@@ -1127,7 +1127,9 @@ class TestUpdateStudentFileWithTeachers:
         df = pd.read_excel(output_file)
         teacher_col = DEFAULT_PRESET.student_columns["teacher"]
         assert df.loc[0, teacher_col] == "Ms. Johnson"
-        assert pd.isna(df.loc[1, teacher_col]) or str(df.loc[1, teacher_col]).strip() in ("", "nan", "NaN")
+        assert pd.isna(df.loc[1, teacher_col]) or str(
+            df.loc[1, teacher_col]
+        ).strip() in ("", "nan", "NaN")
         assert df.loc[2, teacher_col] == "Mr. Davis"
 
     def test_teacher_column_absent_in_input(self, students, tmp_path):
