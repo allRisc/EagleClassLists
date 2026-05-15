@@ -652,7 +652,7 @@ class OptimizationSection(QGroupBox):
     """Widget for configuring and running simulated annealing optimization."""
 
     def __init__(self, model: GradeListModel, parent: QWidget | None = None) -> None:
-        super().__init__("Optimization", parent)
+        super().__init__(parent)
         self.model = model
         self._pre_fitness: float = 0.0
         self._post_fitness: float = 0.0
@@ -940,14 +940,40 @@ class ClassroomsView(QWidget):
         splitter.setSizes([250, 500])
         main_layout.addWidget(splitter, stretch=1)
 
-        # Statistics section
-        stats_group = QGroupBox("Classroom Statistics")
-        stats_layout = QVBoxLayout(stats_group)
+        # Statistics section (collapsible)
+        self.stats_toggle = QToolButton()
+        self.stats_toggle.setText("Classroom Statistics")
+        self.stats_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.stats_toggle.setCheckable(True)
+        self.stats_toggle.setChecked(True)
+        self.stats_toggle.setArrowType(Qt.ArrowType.DownArrow)
+        self.stats_toggle.setStyleSheet(
+            "QToolButton { border: none; font-weight: bold; font-size: 13px; "
+            "text-align: left; padding: 4px 0; }"
+        )
+        self.stats_toggle.clicked.connect(self._toggle_stats)
+        main_layout.addWidget(self.stats_toggle)
+
+        self.stats_group = QGroupBox()
+        stats_layout = QVBoxLayout(self.stats_group)
         self.stats_widget = ClassroomStatisticsWidget(self.model.grade_list)
         stats_layout.addWidget(self.stats_widget)
-        main_layout.addWidget(stats_group)
+        main_layout.addWidget(self.stats_group)
 
-        # Optimization section
+        # Optimization section (collapsible)
+        self.opt_toggle = QToolButton()
+        self.opt_toggle.setText("Optimization")
+        self.opt_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.opt_toggle.setCheckable(True)
+        self.opt_toggle.setChecked(True)
+        self.opt_toggle.setArrowType(Qt.ArrowType.DownArrow)
+        self.opt_toggle.setStyleSheet(
+            "QToolButton { border: none; font-weight: bold; font-size: 13px; "
+            "text-align: left; padding: 4px 0; }"
+        )
+        self.opt_toggle.clicked.connect(self._toggle_optimization)
+        main_layout.addWidget(self.opt_toggle)
+
         self.optimization_section = OptimizationSection(self.model)
         main_layout.addWidget(self.optimization_section)
 
@@ -1046,6 +1072,22 @@ class ClassroomsView(QWidget):
                         row_layout.addStretch()
                 grid.addLayout(row_layout)
             self.teacher_layout.addLayout(grid)
+
+    def _toggle_stats(self) -> None:
+        if self.stats_group.isVisible():
+            self.stats_group.hide()
+            self.stats_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        else:
+            self.stats_group.show()
+            self.stats_toggle.setArrowType(Qt.ArrowType.DownArrow)
+
+    def _toggle_optimization(self) -> None:
+        if self.optimization_section.isVisible():
+            self.optimization_section.hide()
+            self.opt_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        else:
+            self.optimization_section.show()
+            self.opt_toggle.setArrowType(Qt.ArrowType.DownArrow)
 
     def _clear_layout(self, layout: QVBoxLayout) -> None:
         """Remove all items from a layout, including nested layouts."""
