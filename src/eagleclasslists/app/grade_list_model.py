@@ -37,6 +37,7 @@ from eagleclasslists.data.importer import (
     save_classrooms_to_excel,
     save_students_to_excel,
     save_teachers_to_excel,
+    update_student_file_with_teachers as _update_student_file_with_teachers,
 )
 from eagleclasslists.data.settings import (
     ColumnMappingPreset,
@@ -278,6 +279,25 @@ class GradeListModel(QObject):
             filepath: Path to write the classrooms Excel file.
         """
         save_classrooms_to_excel(self._grade_list.classes, filepath, self._active_preset)
+
+    def update_student_file_with_teachers(
+        self, input_filepath: str | Path, output_filepath: str | Path
+    ) -> None:
+        """Update an external student file with currently-filtered teacher assignments.
+
+        Args:
+            input_filepath: Path to the source student Excel file.
+            output_filepath: Path to write the updated file.
+
+        Raises:
+            ExcelImportError: If the file cannot be read or written.
+        """
+        _update_student_file_with_teachers(
+            input_filepath,
+            output_filepath,
+            self._grade_list.students,
+            self._active_preset,
+        )
 
     def remove_student(self, first_name: str, last_name: str) -> None:
         """Remove a student from the grade list and all classrooms.

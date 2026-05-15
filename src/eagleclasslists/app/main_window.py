@@ -109,6 +109,10 @@ class MainWindow(QMainWindow):
         save_classrooms.triggered.connect(self._save_classrooms)
         file_menu.addAction(save_classrooms)
 
+        update_student_file_action = QAction("Update Student File with Teachers...", self)
+        update_student_file_action.triggered.connect(self._update_student_file_with_teachers)
+        file_menu.addAction(update_student_file_action)
+
         file_menu.addSeparator()
 
         exit_action = QAction("Exit", self)
@@ -373,3 +377,34 @@ class MainWindow(QMainWindow):
             self.model.save_classrooms(Path(filepath))
         except Exception as e:
             QMessageBox.critical(self, "Save Failed", f"Failed to save: {e}")
+
+    def _update_student_file_with_teachers(self) -> None:
+        """Update an external student Excel file with teacher assignments."""
+        input_filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Student File",
+            "",
+            "Excel Files (*.xlsx *.xls)",
+        )
+        if not input_filepath:
+            return
+
+        output_filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Updated Student File",
+            "",
+            "Excel Files (*.xlsx)",
+        )
+        if not output_filepath:
+            return
+
+        try:
+            self.model.update_student_file_with_teachers(
+                Path(input_filepath), Path(output_filepath)
+            )
+        except ExcelImportError as e:
+            QMessageBox.critical(
+                self, "Update Failed", f"{e.message}\n\n{e.details or ''}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Update Failed", f"Unexpected error: {e}")
