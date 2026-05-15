@@ -200,6 +200,84 @@ def save_classrooms_to_excel(
     df.to_excel(filepath, sheet_name=preset.classrooms_sheet, index=False)
 
 
+def update_student_file_with_teachers(
+    input_filepath: str | Path,
+    output_filepath: str | Path,
+    students: list[Student],
+    preset: ColumnMappingPreset = DEFAULT_PRESET,
+) -> None:
+    """Update a student Excel file with teacher assignments from a student list.
+
+    Reads students from an input Excel file, matches them by (first_name, last_name)
+    against the provided student list, and fills in the teacher column for matching
+    students. Writes the updated data to an output Excel file.
+
+    Args:
+        input_filepath: Path to the input Excel file to read.
+        output_filepath: Path to the output Excel file to write.
+        students: List of Student objects containing teacher assignments.
+        preset: Column mapping preset defining sheet name and column headers.
+
+    Raises:
+        ExcelImportError: If the Excel file cannot be read, parsed, or written.
+    """
+    try:
+        with pd.ExcelFile(input_filepath) as ef:
+            records = _sheet_to_clean_records(ef, preset.students_sheet)
+
+        teacher_header = preset.student_columns.get("teacher")
+        first_name_header = preset.student_columns.get("first_name")
+        last_name_header = preset.student_columns.get("last_name")
+
+        # Build lookup dict: {(first_name.lower(), last_name.lower()): teacher_name}
+        teacher_lookup: dict[tuple[str, str], str] = {}
+        for student in students:
+            if student.teacher:  # Skip students with empty teacher_name
+                key = (student.first_name.lower(), student.last_name.lower())
+                teacher_lookup[key] = student.teacher
+
+        # Convert records to DataFrame
+        df = pd.DataFrame(records) if records else pd.DataFrame()
+
+        # Add teacher column if absent
+        if teacher_header is not None and teacher_header not in df.columns:
+            df[teacher_header] = ""
+
+        # For each row, look up student by case-insensitive name and fill teacher column
+        if teacher_header is not None:
+            for idx in df.index:
+                first_name_val = df.at[idx, first_name_header] if first_name_header in df.columns else None
+                last_name_val = df.at[idx, last_name_header] if last_name_header in df.columns else None
+
+                if first_name_val is not None and last_name_val is not None:
+                    key = (str(first_name_val).lower(), str(last_name_val).lower())
+                    teacher_name = teacher_lookup.get(key, "")
+                    df.at[idx, teacher_header] = teacher_name
+                else:
+                    df.at[idx, teacher_header] = ""
+
+        # Write the result
+        df.to_excel(output_filepath, sheet_name=preset.students_sheet, index=False)
+
+    except FileNotFoundError as e:
+        raise ExcelImportError(
+            "Excel file not found",
+            "The specified file could not be found. Please check the path.",
+        ) from e
+    except pd.errors.ParserError as e:
+        raise ExcelImportError(
+            "Could not parse the Excel file",
+            f"The file appears to be corrupted or is not a valid Excel file. Technical error: {e}",
+        ) from e
+    except Exception as e:
+        if isinstance(e, ExcelImportError):
+            raise
+        raise ExcelImportError(
+            "Unexpected error updating student file",
+            f"An unexpected error occurred: {type(e).__name__}: {e}",
+        ) from e
+
+
 def load_teachers_from_excel(
     filepath: str | Path,
     preset: ColumnMappingPreset = DEFAULT_PRESET,
