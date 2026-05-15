@@ -80,11 +80,11 @@ class TeacherFormDialog(QDialog):
             self.cluster_checks[cluster] = check
             cluster_layout.addWidget(check)
 
-        self.speech_check = QCheckBox("Speech Qualified")
+        self.speech_check = QCheckBox("Speech Class")
 
         info_layout.addRow("Name:", self.name_edit)
         info_layout.addRow("Grade:", self.grade_combo)
-        info_layout.addRow("Cluster Qualifications:", cluster_layout)
+        info_layout.addRow("Clusters:", cluster_layout)
         info_layout.addRow("Speech:", self.speech_check)
         info_group.setLayout(info_layout)
         layout.addWidget(info_group)

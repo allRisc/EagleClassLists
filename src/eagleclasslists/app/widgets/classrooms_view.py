@@ -765,7 +765,7 @@ class OptimizationSection(QGroupBox):
         layout.addLayout(progress_layout)
 
         # Run button
-        self.run_btn = QPushButton("Run Simulated Annealing Optimization")
+        self.run_btn = QPushButton("Run Class Optimization")
         self.run_btn.clicked.connect(self._on_run_optimization)
         layout.addWidget(self.run_btn)
 
@@ -843,14 +843,14 @@ class OptimizationSection(QGroupBox):
         self._post_fitness = calculate_fitness(optimized, self._get_weights())
         self.model.set_grade_list(optimized)
         self.run_btn.setEnabled(True)
-        self.run_btn.setText("Run Simulated Annealing Optimization")
+        self.run_btn.setText("Run Class Optimization")
         self.progress_bar.setValue(100)
         self.progress_label.setText("Optimization complete!")
         self._show_results()
 
     def _on_error(self, error: str) -> None:
         self.run_btn.setEnabled(True)
-        self.run_btn.setText("Run Simulated Annealing Optimization")
+        self.run_btn.setText("Run Class Optimization")
         self.progress_label.setText(f"Error: {error}")
         QMessageBox.critical(self, "Optimization Error", f"Optimization failed:\n{error}")
 
