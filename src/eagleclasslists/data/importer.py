@@ -24,6 +24,7 @@ students, and classroom data to/from Excel files, decoupled from the data models
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -80,12 +81,13 @@ def _merge_split_cluster_columns(
         if len(matched) > 1:
             first_name = record.get("first_name", "UNKNOWN")
             last_name = record.get("last_name", "UNKNOWN")
-            raise ExcelImportError(
-                "Multiple cluster columns are set for a student",
-                f"Student {first_name} {last_name} has multiple cluster columns marked as Yes: "
-                f"{', '.join(matched)}. Only one cluster is allowed per student.",
+            logging.warning(
+                "Multiple cluster columns are set for a student\n" +
+                f"Student {first_name} {last_name} has multiple cluster columns marked as Yes: " +
+                f"{', '.join(matched)}. Only one cluster is allowed per student."
             )
-        if len(matched) == 1:
+
+        if len(matched) > 0:
             record["cluster"] = matched[0]
 
     return records

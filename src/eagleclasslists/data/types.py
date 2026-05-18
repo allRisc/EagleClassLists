@@ -142,6 +142,8 @@ def _pydantic_bool_parser(val: Any) -> bool:
             return False
         if 'no' in cleaned:
             return False
+        if 'in monitoring' in cleaned:
+            return True
 
     raise ValueError(f"Cannot parse {val!r} as a boolean")
 
